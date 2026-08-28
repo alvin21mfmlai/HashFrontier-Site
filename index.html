@@ -1,0 +1,2333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>HashFrontier</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="HashFrontier — a reproducible multi-core evaluation of birthday, distinguished-point and Pollard-rho collision search on deliberately truncated SHA3-256. 24 configurations, 17 independently verified collisions.">
+<meta name="author" content="Chew Wei Ze Alvin">
+<meta property="og:title" content="HashFrontier">
+<meta property="og:description" content="A reproducible multi-core evaluation of birthday, distinguished-point and Pollard-rho collision search on truncated SHA3-256.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23070a11'/%3E%3Cpath d='M7 11h18M7 21h18M13 5l-2.5 22M23 5l-2.5 22' fill='none' stroke='%23f2b134' stroke-width='2.1' stroke-linecap='round'/%3E%3C/svg%3E">
+</head>
+<body>
+<style>
+
+/* ============================================================
+   GUARDIAN-NIDS — design tokens
+   ============================================================ */
+:root{
+  --bg:            #070a11;
+  --bg-2:          #0b111b;
+  --panel:         #0e1521;
+  --panel-2:       #121b29;
+  --line:          #1d2839;
+  --line-soft:     #16202e;
+  --ink:           #e8eef7;
+  --ink-2:         #a9bacd;
+  --ink-3:         #7e91aa;
+  --gold:          #f2b134;
+  --gold-dim:      #8a6218;
+  --blue:          #6ea8fe;
+  --violet:        #a78bfa;
+  --amber:         #f6b73c;
+  --rose:          #f2637f;
+  --radius:        14px;
+  --radius-sm:     9px;
+  --maxw:          1180px;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -12px rgba(0,0,0,.7);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth; scroll-padding-top:86px; -webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--sans); font-size:16px; line-height:1.65;
+  -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *{animation-duration:.001ms !important; transition-duration:.001ms !important}
+}
+img,svg{max-width:100%}
+a{color:var(--gold); text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--gold); outline-offset:3px; border-radius:4px}
+
+h1,h2,h3,h4{line-height:1.2; margin:0; letter-spacing:-.02em; font-weight:700}
+p{margin:0 0 1em}
+p:last-child{margin-bottom:0}
+
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+.mono{font-family:var(--mono)}
+.muted{color:var(--ink-2)}
+.dim{color:var(--ink-3)}
+.nowrap{white-space:nowrap}
+
+/* ---------- skip link ---------- */
+.skip{position:absolute; left:-9999px; top:0; background:var(--gold); color:#1a1204;
+  padding:10px 16px; border-radius:0 0 8px 0; font-weight:700; z-index:200}
+.skip:focus{left:0}
+
+/* ============================================================
+   NAV
+   ============================================================ */
+.nav{
+  position:sticky; top:0; z-index:100;
+  background:rgba(7,10,17,.82); backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line-soft);
+}
+.nav-in{max-width:var(--maxw); margin:0 auto; padding:0 24px;
+  height:62px; display:flex; align-items:center; gap:22px}
+.brand{display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:-.02em;
+  color:var(--ink); font-size:15px; flex:none}
+.brand:hover{text-decoration:none}
+.brand svg{width:22px; height:22px; flex:none}
+.brand .b-sub{color:var(--ink-3); font-weight:500; font-size:12px; letter-spacing:.06em;
+  text-transform:uppercase; border-left:1px solid var(--line); padding-left:10px; margin-left:2px}
+.nav-links{display:flex; gap:2px; overflow-x:auto; scrollbar-width:none; margin-left:auto}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a{
+  color:var(--ink-2); font-size:13.5px; font-weight:500; padding:7px 11px;
+  border-radius:8px; white-space:nowrap; transition:color .15s, background .15s;
+}
+.nav-links a:hover{color:var(--ink); background:var(--panel-2); text-decoration:none}
+.nav-links a.on{color:var(--gold); background:rgba(242,177,52,.08)}
+@media (max-width:820px){ .brand .b-sub{display:none} .nav-in{gap:12px} }
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero{position:relative; overflow:hidden; border-bottom:1px solid var(--line-soft);
+  padding:86px 0 66px; background:var(--bg)}
+.hero::before,.hero::after{content:""; position:absolute; border-radius:50%; filter:blur(90px);
+  pointer-events:none; z-index:0}
+.hero::before{width:640px; height:640px; top:-300px; left:-160px;
+  background:radial-gradient(circle, rgba(242,177,52,.20), transparent 68%)}
+.hero::after{width:700px; height:700px; top:-240px; right:-260px;
+  background:radial-gradient(circle, rgba(110,168,254,.16), transparent 68%)}
+.hero-grid-bg{position:absolute; inset:0; z-index:0; opacity:.5;
+  background-image:linear-gradient(var(--line-soft) 1px, transparent 1px),
+                   linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size:56px 56px;
+  -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 78%);
+  mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 78%);
+}
+.hero .wrap{position:relative; z-index:1}
+.eyebrow{display:inline-flex; align-items:center; gap:9px; font-family:var(--mono);
+  font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold);
+  background:rgba(242,177,52,.07); border:1px solid rgba(242,177,52,.22);
+  padding:6px 13px; border-radius:100px; margin-bottom:26px}
+.eyebrow .dot{width:6px; height:6px; border-radius:50%; background:var(--gold);
+  box-shadow:0 0 0 3px rgba(242,177,52,.18)}
+h1.title{font-size:clamp(2.6rem,7vw,4.6rem); font-weight:800; letter-spacing:-.045em; margin:0 0 6px}
+h1.title .g{background:linear-gradient(100deg,#e8eef7 6%,var(--gold) 50%,#e0803a 97%);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent}
+.title-sub{font-size:clamp(1.02rem,2.1vw,1.32rem); color:var(--ink-2); font-weight:500;
+  max-width:820px; margin:14px 0 0; line-height:1.55}
+.hero-note{margin-top:26px; color:var(--ink-3); font-size:14px; max-width:760px}
+.hero-cta{display:flex; flex-wrap:wrap; gap:12px; margin-top:34px}
+.btn{display:inline-flex; align-items:center; gap:9px; padding:11px 19px; border-radius:10px;
+  font-size:14.5px; font-weight:600; border:1px solid var(--line); color:var(--ink);
+  background:var(--panel); transition:.16s; cursor:pointer}
+.btn:hover{text-decoration:none; border-color:#2c3c53; background:var(--panel-2); transform:translateY(-1px)}
+.btn.primary{background:linear-gradient(180deg,#f7c250,#e0a022); color:#1a1204; border-color:transparent; font-weight:700}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn svg{width:16px; height:16px; flex:none}
+
+/* stat strip */
+.stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr)); gap:1px;
+  margin-top:52px; background:var(--line-soft); border:1px solid var(--line-soft);
+  border-radius:var(--radius); overflow:hidden}
+.stat{background:var(--bg-2); padding:20px 18px}
+.stat .v{font-family:var(--mono); font-size:clamp(1.5rem,3.2vw,1.95rem); font-weight:700;
+  color:var(--ink); letter-spacing:-.03em; line-height:1.1}
+.stat .v em{font-style:normal; color:var(--gold)}
+.stat .l{font-size:11.5px; color:var(--ink-3); text-transform:uppercase; letter-spacing:.09em;
+  margin-top:7px; font-weight:600}
+
+/* ============================================================
+   SECTION SHELL
+   ============================================================ */
+section{padding:82px 0; border-bottom:1px solid var(--line-soft); position:relative}
+section.alt{background:var(--bg-2)}
+.sec-head{max-width:800px; margin-bottom:44px}
+.sec-num{font-family:var(--mono); font-size:11.5px; letter-spacing:.16em; color:var(--gold);
+  text-transform:uppercase; font-weight:600; display:block; margin-bottom:12px}
+h2.sec-title{font-size:clamp(1.7rem,3.6vw,2.4rem); letter-spacing:-.035em; margin-bottom:14px}
+.sec-lede{font-size:clamp(1rem,1.6vw,1.1rem); color:var(--ink-2); line-height:1.62}
+
+h3.sub{font-size:1.14rem; margin:0 0 14px; letter-spacing:-.02em}
+h4.mini{font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--ink-3);
+  font-weight:700; margin:0 0 12px}
+
+/* ============================================================
+   CARDS / GRIDS
+   ============================================================ */
+.card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:24px}
+.card.tight{padding:18px}
+.grid{display:grid; gap:16px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(258px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.g3x{grid-template-columns:repeat(3,1fr)}
+@media (max-width:940px){ .g3x{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:620px){ .g3x{grid-template-columns:1fr} }
+.rowkey{display:flex; flex-wrap:wrap; gap:16px; margin-top:14px; font-size:12.2px;
+  color:var(--ink-3); font-family:var(--mono)}
+.rowkey span{display:inline-flex; align-items:center; gap:7px}
+.rowkey i{width:11px; height:5px; border-radius:100px; display:inline-block}
+
+.feat{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  padding:24px; transition:border-color .18s, transform .18s}
+.feat:hover{border-color:#2a3a51; transform:translateY(-2px)}
+.feat .ico{width:38px; height:38px; border-radius:10px; display:grid; place-items:center;
+  background:rgba(242,177,52,.08); border:1px solid rgba(242,177,52,.2); margin-bottom:16px}
+.feat .ico svg{width:19px; height:19px; stroke:var(--gold); fill:none; stroke-width:1.9;
+  stroke-linecap:round; stroke-linejoin:round}
+.feat h3{font-size:1.02rem; margin-bottom:9px}
+.feat p{font-size:14.2px; color:var(--ink-2); line-height:1.6; margin:0}
+
+/* pills */
+.pills{display:flex; flex-wrap:wrap; gap:8px}
+.pill{font-family:var(--mono); font-size:12px; padding:5px 11px; border-radius:100px;
+  border:1px solid var(--line); background:var(--panel-2); color:var(--ink-2)}
+.pill.gold{border-color:rgba(242,177,52,.28); color:var(--gold); background:rgba(242,177,52,.06)}
+.pill.blue{border-color:rgba(110,168,254,.28); color:var(--blue); background:rgba(110,168,254,.06)}
+.pill.violet{border-color:rgba(167,139,250,.28); color:var(--violet); background:rgba(167,139,250,.06)}
+
+/* ============================================================
+   PIPELINE / ARCHITECTURE
+   ============================================================ */
+.pipe{position:relative; padding-left:0}
+.stage{display:grid; grid-template-columns:64px 1fr; gap:0; position:relative}
+.stage-rail{position:relative; display:flex; flex-direction:column; align-items:center}
+.stage-rail .node{width:38px; height:38px; border-radius:11px; flex:none; display:grid;
+  place-items:center; font-family:var(--mono); font-weight:700; font-size:13px;
+  background:var(--panel-2); border:1px solid var(--line); color:var(--gold); margin-top:20px; z-index:1}
+.stage-rail .lineseg{flex:1; width:2px; background:linear-gradient(var(--line), var(--line-soft))}
+.stage:last-child .stage-rail .lineseg{background:transparent}
+.stage-body{padding:14px 0 26px 20px; min-width:0}
+.stage-card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px}
+.stage-card:hover{border-color:#2a3a51}
+.stage-title{display:flex; flex-wrap:wrap; align-items:baseline; gap:12px; margin-bottom:8px}
+.stage-title h3{font-size:1.06rem}
+.stage-title code{font-family:var(--mono); font-size:12.5px; color:var(--gold);
+  background:rgba(242,177,52,.07); border:1px solid rgba(242,177,52,.18);
+  padding:2px 8px; border-radius:6px}
+.stage-card p{font-size:14.2px; color:var(--ink-2); margin:0 0 14px}
+.artefacts{display:flex; flex-wrap:wrap; gap:7px}
+.artefact{font-family:var(--mono); font-size:11.5px; color:var(--ink-3);
+  border:1px dashed var(--line); padding:4px 9px; border-radius:6px; background:var(--bg-2)}
+@media (max-width:640px){ .stage{grid-template-columns:44px 1fr} .stage-body{padding-left:14px} }
+
+/* ============================================================
+   TABLES
+   ============================================================ */
+.tbl-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:var(--radius);
+  background:var(--panel); -webkit-overflow-scrolling:touch}
+table{width:100%; border-collapse:collapse; font-size:13.8px; min-width:600px}
+thead th{
+  text-align:left; font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:700; padding:14px 16px; background:var(--panel-2);
+  border-bottom:1px solid var(--line); white-space:nowrap; position:sticky; top:0;
+}
+tbody td{padding:13px 16px; border-bottom:1px solid var(--line-soft); color:var(--ink-2); vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:rgba(255,255,255,.018)}
+td.num,th.num{text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+td strong{color:var(--ink); font-weight:600}
+td .k{color:var(--ink); font-weight:600}
+.best{color:var(--gold) !important; font-weight:700}
+.neg{color:var(--rose)}
+.pos{color:var(--gold)}
+caption, .tbl-cap{caption-side:bottom; text-align:left; font-size:12.6px; color:var(--ink-3);
+  padding:12px 2px 0; line-height:1.5}
+
+/* ============================================================
+   CHART SHELL
+   ============================================================ */
+.chart-card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:24px}
+.chart-head{display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start;
+  justify-content:space-between; margin-bottom:22px}
+.chart-head h3{font-size:1.05rem; margin-bottom:5px}
+.chart-head p{font-size:13.2px; color:var(--ink-3); margin:0; max-width:560px}
+.seg{display:inline-flex; background:var(--bg-2); border:1px solid var(--line);
+  border-radius:9px; padding:3px; gap:2px; flex:none}
+.seg button{
+  font-family:var(--sans); font-size:12.6px; font-weight:600; color:var(--ink-3);
+  background:transparent; border:0; padding:6px 13px; border-radius:6px; cursor:pointer;
+  transition:.14s; white-space:nowrap;
+}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--panel-2); color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line)}
+
+/* ---------- heatmap ---------- */
+.hm-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:6px}
+.hm{display:grid; gap:3px; min-width:720px}
+.hm .hcell{
+  font-family:var(--mono); font-size:12.2px; font-variant-numeric:tabular-nums;
+  display:grid; place-items:center; height:38px; border-radius:6px; color:#1a1204;
+  font-weight:600; position:relative; cursor:default; transition:transform .12s, box-shadow .12s;
+}
+.hm .hcell:hover{transform:scale(1.06); z-index:3; box-shadow:0 0 0 2px var(--ink)}
+.hm .hcell.rowbest{box-shadow:inset 0 0 0 2px rgba(255,255,255,.85)}
+.hm .rlab{font-size:11.8px; color:var(--ink-2); display:flex; align-items:center;
+  justify-content:flex-end; padding-right:12px; height:38px; white-space:nowrap; font-weight:500}
+.hm .rlab .t{font-family:var(--mono); font-size:10.4px; color:var(--ink-3);
+  margin-left:7px; text-transform:uppercase; letter-spacing:.05em}
+.hm .clab{font-family:var(--mono); font-size:11px; color:var(--ink-3); text-align:center;
+  padding-bottom:8px; letter-spacing:.03em}
+.hm .corner{}
+.legend{display:flex; align-items:center; gap:10px; margin-top:18px; font-size:11.6px; color:var(--ink-3);
+  font-family:var(--mono)}
+.legend .ramp{height:9px; width:180px; border-radius:100px;
+  background:linear-gradient(90deg,#2a2210,#5c4614,#8f6c18,#c99a22,#f7cf6a)}
+
+/* ---------- bar charts ---------- */
+.bars{display:flex; flex-direction:column; gap:11px}
+.bar-row{display:grid; grid-template-columns:146px 1fr 58px; align-items:center; gap:14px}
+.bar-row .name{font-size:13.2px; color:var(--ink-2); text-align:right; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis}
+.bar-row .name b{color:var(--ink); font-weight:600}
+.bar-track{height:26px; background:var(--bg-2); border-radius:6px; overflow:hidden;
+  border:1px solid var(--line-soft); position:relative}
+.bar-fill{height:100%; border-radius:5px; background:linear-gradient(90deg,var(--gold-dim),var(--gold));
+  transition:width .55s cubic-bezier(.22,1,.36,1); position:relative}
+.bar-fill.alt{background:linear-gradient(90deg,#3b6fbd,var(--blue))}
+.bar-fill.hi{background:linear-gradient(90deg,#b0553f,var(--rose))}
+.bar-row .val{font-family:var(--mono); font-size:13px; color:var(--ink);
+  font-variant-numeric:tabular-nums; text-align:right}
+.bar-row .val small{color:var(--ink-3); font-size:11px; display:block; line-height:1.2}
+@media (max-width:600px){ .bar-row{grid-template-columns:98px 1fr 52px; gap:9px}
+  .bar-row .name{font-size:12px} }
+
+/* grouped bars */
+.gbars{display:grid; grid-template-columns:repeat(var(--cols,6), minmax(74px,1fr)); gap:14px;
+  align-items:end; overflow-x:auto; padding-bottom:6px; -webkit-overflow-scrolling:touch}
+.gcol{display:flex; flex-direction:column; align-items:center; gap:10px}
+.gcol .pair{display:flex; align-items:flex-end; gap:7px; height:190px; width:100%; justify-content:center}
+.gcol .gb{width:34px; border-radius:5px 5px 0 0; position:relative;
+  transition:height .55s cubic-bezier(.22,1,.36,1); min-height:3px}
+.gcol .gb .tag{position:absolute; top:-21px; left:50%; transform:translateX(-50%);
+  font-family:var(--mono); font-size:10.8px; color:var(--ink-2); white-space:nowrap}
+.gb.a{background:linear-gradient(180deg,var(--gold),var(--gold-dim))}
+.gb.b{background:linear-gradient(180deg,var(--amber),#b8801f)}
+.gb.c{background:linear-gradient(180deg,var(--blue),#3b6fbd)}
+.gb.d{background:linear-gradient(180deg,var(--rose),#a9384f)}
+.gcol .glab{font-size:11.6px; color:var(--ink-3); text-align:center; line-height:1.35;
+  border-top:1px solid var(--line-soft); padding-top:9px; width:100%}
+.key{display:flex; flex-wrap:wrap; gap:16px; margin-top:20px; font-size:12.4px; color:var(--ink-2)}
+.key span{display:inline-flex; align-items:center; gap:7px}
+.key i{width:11px; height:11px; border-radius:3px; display:inline-block}
+
+/* scatter */
+.scatter-wrap{overflow-x:auto}
+.scatter{min-width:640px; display:block}
+.scatter .axis{stroke:var(--line); stroke-width:1}
+.scatter .grid-l{stroke:var(--line-soft); stroke-width:1; stroke-dasharray:3 4}
+.scatter text{font-family:var(--mono); font-size:10.5px; fill:var(--ink-3)}
+.scatter .pt-label{font-size:11px; font-weight:700; fill:#1a1204; font-family:var(--sans)}
+.scatter .ax-title{fill:var(--ink-3); font-size:11px; font-family:var(--sans)}
+
+/* ---------- tooltip ---------- */
+#tip{
+  position:fixed; z-index:300; pointer-events:none; opacity:0; transform:translateY(4px);
+  transition:opacity .12s, transform .12s;
+  background:#050810; border:1px solid var(--line); border-radius:9px; padding:9px 12px;
+  font-size:12.4px; color:var(--ink); box-shadow:var(--shadow); max-width:250px; line-height:1.5;
+}
+#tip.on{opacity:1; transform:translateY(0)}
+#tip .tt{font-family:var(--mono); font-size:11px; color:var(--ink-3); display:block;
+  text-transform:uppercase; letter-spacing:.08em; margin-bottom:3px}
+#tip b{color:var(--gold); font-family:var(--mono)}
+
+/* ============================================================
+   CODE
+   ============================================================ */
+.tabs{display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:0; overflow-x:auto;
+  scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{
+  font-family:var(--mono); font-size:12.4px; color:var(--ink-3); background:transparent;
+  border:0; border-bottom:2px solid transparent; padding:11px 15px; cursor:pointer;
+  white-space:nowrap; transition:.15s; margin-bottom:-1px;
+}
+.tabs button:hover{color:var(--ink)}
+.tabs button[aria-selected="true"]{color:var(--gold); border-bottom-color:var(--gold)}
+pre{
+  margin:0; background:#05080f; border:1px solid var(--line); border-top:0;
+  border-radius:0 0 var(--radius) var(--radius); padding:20px; overflow-x:auto;
+  font-family:var(--mono); font-size:12.7px; line-height:1.72; color:#c9d6e6;
+  -webkit-overflow-scrolling:touch;
+}
+pre code{font-family:inherit}
+.cm{color:#6d8098; font-style:italic}
+.kw{color:#c792ea}
+.st{color:#9ae6a0}
+.fn{color:#82aaff}
+.nu{color:#f6b73c}
+.op{color:#89ddff}
+.pr{color:var(--gold)}
+code.inl{font-family:var(--mono); font-size:.9em; background:var(--panel-2);
+  border:1px solid var(--line); padding:1.5px 6px; border-radius:5px; color:var(--ink-2)}
+
+/* ============================================================
+   MISC BLOCKS
+   ============================================================ */
+.note{border-left:3px solid var(--gold); background:rgba(242,177,52,.045);
+  border-radius:0 var(--radius-sm) var(--radius-sm) 0; padding:16px 20px; font-size:14.2px;
+  color:var(--ink-2)}
+.note.warn{border-left-color:var(--amber); background:rgba(246,183,60,.05)}
+.note strong{color:var(--ink)}
+
+.kvs{display:grid; gap:0}
+.kv{display:grid; grid-template-columns:minmax(120px,190px) 1fr; gap:16px;
+  padding:11px 0; border-bottom:1px solid var(--line-soft); font-size:14px}
+.kv:last-child{border-bottom:0}
+.kv dt{color:var(--ink-3); font-size:12.6px; font-family:var(--mono)}
+.kv dd{margin:0; color:var(--ink-2)}
+@media (max-width:520px){ .kv{grid-template-columns:1fr; gap:2px} }
+
+ul.ticks{list-style:none; padding:0; margin:0; display:grid; gap:11px}
+ul.ticks li{position:relative; padding-left:27px; font-size:14.2px; color:var(--ink-2); line-height:1.6}
+ul.ticks li::before{
+  content:""; position:absolute; left:0; top:7px; width:15px; height:15px; border-radius:4px;
+  background:rgba(242,177,52,.09); border:1px solid rgba(242,177,52,.3);
+}
+ul.ticks li::after{
+  content:""; position:absolute; left:4.5px; top:10.5px; width:5px; height:8px;
+  border:solid var(--gold); border-width:0 1.8px 1.8px 0; transform:rotate(42deg);
+}
+ul.ticks li strong{color:var(--ink); font-weight:600}
+
+ul.plain{list-style:none; padding:0; margin:0; display:grid; gap:9px}
+ul.plain li{font-size:14px; color:var(--ink-2); padding-left:18px; position:relative}
+ul.plain li::before{content:"▸"; position:absolute; left:0; color:var(--gold); font-size:11px; top:2px}
+
+/* RQ accordion */
+.rq{border:1px solid var(--line); border-radius:var(--radius); background:var(--panel);
+  overflow:hidden; margin-bottom:10px}
+.rq summary{cursor:pointer; padding:17px 20px; font-weight:600; font-size:14.8px;
+  list-style:none; display:flex; align-items:flex-start; gap:13px; transition:background .15s}
+.rq summary::-webkit-details-marker{display:none}
+.rq summary:hover{background:var(--panel-2)}
+.rq summary .tagn{font-family:var(--mono); font-size:11.5px; color:var(--gold);
+  background:rgba(242,177,52,.08); border:1px solid rgba(242,177,52,.22);
+  padding:3px 8px; border-radius:6px; flex:none; margin-top:1px}
+.rq summary .chev{margin-left:auto; color:var(--ink-3); transition:transform .2s; flex:none; font-size:12px}
+.rq[open] summary .chev{transform:rotate(180deg)}
+.rq .rq-body{padding:0 20px 20px 60px; font-size:14.2px; color:var(--ink-2); line-height:1.68}
+@media (max-width:560px){ .rq .rq-body{padding-left:20px} }
+
+/* model cards */
+.mcard{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  padding:19px; display:flex; flex-direction:column; gap:11px; transition:.18s}
+.mcard:hover{border-color:#2a3a51; transform:translateY(-2px)}
+.mcard .top{display:flex; align-items:center; justify-content:space-between; gap:10px}
+.mcard h4{font-size:14.6px; margin:0; letter-spacing:-.015em}
+.mcard .score{font-family:var(--mono); font-size:14.5px; color:var(--gold); font-weight:700}
+.mcard p{font-size:13.1px; color:var(--ink-2); margin:0; line-height:1.55; flex:1}
+.mcard .cfg{font-family:var(--mono); font-size:11.3px; color:var(--ink-3);
+  border-top:1px solid var(--line-soft); padding-top:11px; line-height:1.5}
+.mcard .meter{height:4px; background:var(--bg-2); border-radius:100px; overflow:hidden}
+.mcard .meter i{display:block; height:100%; background:linear-gradient(90deg,var(--gold-dim),var(--gold));
+  border-radius:100px; transition:width .6s cubic-bezier(.22,1,.36,1)}
+.mcard.ens{border-color:rgba(167,139,250,.28)}
+.mcard.ens .score{color:var(--violet)}
+.mcard.ens .meter i{background:linear-gradient(90deg,#6d4fbb,var(--violet))}
+.mcard.scr{border-color:rgba(246,183,60,.3)}
+.mcard.scr .score{color:var(--amber)}
+.mcard.scr .meter i{background:linear-gradient(90deg,#a8761f,var(--amber))}
+
+/* dataset cards */
+.ds{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:20px;
+  display:flex; flex-direction:column; gap:12px}
+.ds .dt{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap}
+.ds h4{font-size:15px; margin:0}
+.ds .src{font-family:var(--mono); font-size:10.8px; color:var(--ink-3);
+  text-transform:uppercase; letter-spacing:.07em}
+.ds p{font-size:13.2px; color:var(--ink-2); margin:0; line-height:1.55}
+.ds .rowbar{display:flex; height:7px; border-radius:100px; overflow:hidden; background:var(--bg-2)}
+.ds .rowbar i{display:block; height:100%}
+.ds .rowbar .tr{background:var(--gold)}
+.ds .rowbar .va{background:var(--blue)}
+.ds .rowbar .te{background:var(--violet)}
+.ds .nums{display:flex; flex-wrap:wrap; gap:14px; font-family:var(--mono); font-size:11.4px; color:var(--ink-3)}
+.ds .nums b{color:var(--ink-2); font-weight:500}
+
+/* footer */
+footer{padding:56px 0 64px; background:var(--bg)}
+.foot{display:flex; flex-wrap:wrap; gap:26px; justify-content:space-between; align-items:flex-start}
+.foot .fl{max-width:460px}
+.foot h4{font-size:15px; margin:0 0 9px}
+.foot p{font-size:13.4px; color:var(--ink-3); line-height:1.6}
+.foot-links{display:flex; flex-wrap:wrap; gap:9px}
+.foot-rule{height:1px; background:var(--line-soft); margin:34px 0 22px}
+.foot-bot{display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between;
+  font-size:12.4px; color:var(--ink-3); font-family:var(--mono)}
+
+/* reveal on scroll */
+.rv{opacity:0; transform:translateY(18px); transition:opacity .6s ease, transform .6s cubic-bezier(.22,1,.36,1)}
+.rv.in{opacity:1; transform:none}
+@media (prefers-reduced-motion: reduce){ .rv{opacity:1; transform:none} }
+
+/* ============================================================
+   HASHFRONTIER ADDITIONS
+   Built on the same shell as GUARDIAN-NIDS; these are the
+   components this subject needs that the NIDS page did not.
+   ============================================================ */
+
+/* ---------- shared-prefix digest display ---------- */
+.digest-panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+.digest-head{display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;
+  padding:14px 20px; background:var(--panel-2); border-bottom:1px solid var(--line)}
+.digest-head .t{font-family:var(--mono); font-size:11.5px; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--ink-3)}
+.digest-body{padding:20px}
+.drow{display:grid; grid-template-columns:64px 1fr; gap:14px; align-items:baseline; margin-bottom:10px}
+.drow .dl{font-family:var(--mono); font-size:11.5px; color:var(--ink-3); text-align:right}
+.dg{font-family:var(--mono); font-size:clamp(10.5px,1.5vw,13.4px); word-break:break-all; line-height:1.8}
+.dg .pre{color:var(--gold); background:rgba(242,177,52,.13);
+  box-shadow:inset 0 0 0 1px rgba(242,177,52,.24); border-radius:3px; padding:1px 0}
+.dg .post{color:var(--ink-3)}
+@media (max-width:560px){ .drow{grid-template-columns:1fr; gap:3px} .drow .dl{text-align:left} }
+
+/* ---------- outcome matrix (same visual language as the NIDS heatmap) ---------- */
+.mx{display:grid; gap:3px; min-width:700px; grid-template-columns:168px repeat(8,1fr)}
+.mx .corner{}
+.mx .clab{font-family:var(--mono); font-size:11px; color:var(--ink-3); text-align:center;
+  padding-bottom:8px; letter-spacing:.03em}
+.mx .rlab{font-size:11.8px; color:var(--ink-2); display:flex; align-items:center;
+  justify-content:flex-end; padding-right:12px; height:38px; white-space:nowrap; font-weight:500; gap:8px}
+.mx .rlab i{width:9px; height:9px; border-radius:3px; flex:none}
+.mx .cell{
+  font-family:var(--mono); font-size:10.6px; letter-spacing:.06em; font-weight:700;
+  display:grid; place-items:center; height:38px; border-radius:6px; border:1px solid transparent;
+  cursor:pointer; transition:transform .12s, box-shadow .12s; padding:0;
+}
+.mx .cell:hover{transform:scale(1.05); z-index:3; box-shadow:0 0 0 2px var(--ink)}
+.mx .cell[aria-pressed="true"]{box-shadow:0 0 0 2px var(--gold)}
+.mx .cell.verified{background:#2f9d78; color:#04120c}
+.mx .cell.budget{background:rgba(242,177,52,.10); border-color:rgba(242,177,52,.55);
+  border-style:dashed; color:var(--gold)}
+.mx .cell.interrupted{background:rgba(126,145,170,.08); border-color:rgba(126,145,170,.45);
+  border-style:dotted; color:var(--ink-3)}
+
+.detail{margin-top:20px; border:1px solid var(--line); border-radius:var(--radius);
+  background:var(--bg-2); padding:20px 22px}
+.detail-top{display:flex; flex-wrap:wrap; gap:12px; align-items:center;
+  justify-content:space-between; margin-bottom:16px}
+.detail-top h3{font-size:1.02rem; display:flex; align-items:center; gap:9px}
+.detail-top h3 i{width:10px; height:10px; border-radius:3px; flex:none}
+.dstat{display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:var(--line-soft);
+  border:1px solid var(--line-soft); border-radius:var(--radius-sm); overflow:hidden}
+.dstat > div{background:var(--panel); padding:13px 15px}
+.dstat .k{font-family:var(--mono); font-size:10px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3)}
+.dstat .v{font-family:var(--mono); font-size:14.5px; color:var(--ink); margin-top:6px;
+  font-variant-numeric:tabular-nums}
+@media (max-width:820px){ .dstat{grid-template-columns:repeat(2,1fr)} }
+
+.state{display:inline-flex; align-items:center; gap:7px; font-family:var(--mono); font-size:11px;
+  letter-spacing:.06em; text-transform:uppercase; padding:4px 10px; border-radius:100px; border:1px solid}
+.state.verified{color:#45d19a; border-color:rgba(69,209,154,.35); background:rgba(69,209,154,.08)}
+.state.budget{color:var(--gold); border-color:rgba(242,177,52,.35); background:rgba(242,177,52,.07)}
+.state.interrupted{color:var(--ink-3); border-color:rgba(126,145,170,.35); background:rgba(126,145,170,.07)}
+
+/* ---------- line chart ---------- */
+.lchart{width:100%; height:auto; display:block; overflow:visible}
+.lchart .axis{stroke:var(--line); stroke-width:1}
+.lchart .grid-l{stroke:var(--line-soft); stroke-width:1; stroke-dasharray:3 4}
+.lchart text{font-family:var(--mono); font-size:10.5px; fill:var(--ink-3)}
+.lchart .ax-title{fill:var(--ink-3); font-size:11px; font-family:var(--sans)}
+.lchart .sline{fill:none; stroke-width:2.1; stroke-linejoin:round; stroke-linecap:round}
+.lchart .expline{fill:none; stroke:var(--ink-3); stroke-width:1.4; stroke-dasharray:5 5; opacity:.8}
+.lchart .pt{stroke:var(--panel); stroke-width:2; cursor:pointer}
+.lchart .pt-open{fill:var(--panel); stroke-width:2; cursor:pointer}
+
+/* ---------- byte layout ---------- */
+.bytes{display:flex; flex-wrap:wrap; gap:6px}
+.byte{border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px;
+  background:var(--panel-2); color:var(--ink-3); text-align:center; flex:1 1 auto;
+  font-family:var(--mono); font-size:10.6px; letter-spacing:.04em}
+.byte b{display:block; color:var(--ink-2); font-weight:600; font-size:12.2px; margin-bottom:4px;
+  letter-spacing:0}
+.byte.hl{border-color:rgba(242,177,52,.4); background:rgba(242,177,52,.07); color:var(--gold)}
+.byte.hl b{color:var(--gold)}
+.byte.tag{border-color:rgba(110,168,254,.35); background:rgba(110,168,254,.07); color:var(--blue)}
+.byte.tag b{color:var(--blue)}
+
+/* ---------- evidence table density ---------- */
+table.dense{font-size:12.9px}
+table.dense tbody td{padding:10px 14px; font-family:var(--mono); font-size:12.4px}
+table.dense td.eng{font-family:var(--sans); color:var(--ink); display:flex; align-items:center; gap:8px}
+table.dense td.eng i{width:9px; height:9px; border-radius:3px; flex:none}
+table.dense td.out{color:var(--gold)}
+
+/* grid and flex children must be allowed to shrink below their content width,
+   otherwise a wide <pre> or table pushes the page sideways on narrow screens */
+.grid > *{min-width:0}
+.chart-card, .card, .feat, .stage-card, .digest-panel{min-width:0}
+.foot > *{min-width:0}
+/* a five-button segmented control must scroll rather than widen the page */
+.seg{max-width:100%; overflow-x:auto; scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+
+</style>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="brand" href="#top">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M7 11h18M7 21h18M13 5l-2.5 22M23 5l-2.5 22" fill="none" stroke="#f2b134" stroke-width="2.1" stroke-linecap="round"/>
+      </svg>
+      HashFrontier
+      <span class="b-sub">Applied Cryptography</span>
+    </a>
+    <div class="nav-links" id="navlinks">
+      <a href="#overview">Overview</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#widths">Widths</a>
+      <a href="#method">Method</a>
+      <a href="#engines">Engines</a>
+      <a href="#results">Results</a>
+      <a href="#evidence">Evidence</a>
+      <a href="#discussion">Discussion</a>
+      <a href="#engineering">Engineering</a>
+    </div>
+  </div>
+</nav>
+
+<main id="main">
+
+<!-- ══════════════════════════ HERO ══════════════════════════ -->
+<header class="hero" id="top">
+  <div class="hero-grid-bg" aria-hidden="true"></div>
+  <div class="wrap">
+    <span class="eyebrow"><span class="dot"></span>Generic Hash Collision · Applied Cryptography</span>
+
+    <h1 class="title"><span class="g">HashFrontier</span></h1>
+
+    <p class="title-sub">
+      A reproducible multi-core evaluation of <strong>birthday</strong>, <strong>distinguished-point</strong>
+      and <strong>Pollard-rho</strong> collision search on deliberately truncated SHA3-256 — 24 configurations
+      from 10 to 80 bits, 17 independently verified collisions, and a claim boundary that never overstates
+      a single one of them.
+    </p>
+
+    <p class="hero-note">
+      Built for MSSD&nbsp;51.507 <em>Security Tools Lab 2</em> (Proposed Project — Generic Hash Collision),
+      M.Sc. Security by Design, Singapore University of Technology and Design.
+      Configuration-frozen, independently verifiable, and resumable from a durable checkpoint.
+    </p>
+
+    <div class="hero-cta">
+      <a class="btn primary" href="#results">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+        Explore the results
+      </a>
+      <a class="btn" href="#architecture">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        How it works
+      </a>
+      <a class="btn" href="https://github.com/alvin21mfmlai/HashFrontier" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 00-3.79 23.4c.6.11.82-.26.82-.58v-2.2c-3.34.72-4.04-1.6-4.04-1.6-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.09 1.85 1.24 1.85 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.96 0-1.32.47-2.39 1.24-3.23-.12-.31-.54-1.53.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 016 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.18.77.84 1.24 1.91 1.24 3.23 0 4.63-2.8 5.65-5.48 5.95.43.37.82 1.1.82 2.22v3.29c0 .32.21.7.82.58A12 12 0 0012 .5z"/></svg>
+        Repository
+      </a>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="v"><em>24</em></div><div class="l">Configurations</div></div>
+      <div class="stat"><div class="v"><em>17</em></div><div class="l">Verified collisions</div></div>
+      <div class="stat"><div class="v">70<span class="dim" style="font-size:.62em">bit</span></div><div class="l">Widest verified</div></div>
+      <div class="stat"><div class="v">288<span class="dim" style="font-size:.62em">B</span></div><div class="l">Hashes at 80 bits</div></div>
+      <div class="stat"><div class="v">4.16<span class="dim" style="font-size:.62em">MiB</span></div><div class="l">Storage for DP-70</div></div>
+      <div class="stat"><div class="v">17/17</div><div class="l">Verifier replay pass</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════════════════════ OVERVIEW ══════════════════════════ -->
+<section id="overview">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="sec-num">01 — Overview</span>
+      <h2 class="sec-title">A controlled state space, not a broken hash</h2>
+      <p class="sec-lede">
+        A generic collision against the complete 256-bit output of SHA3-256 is outside the reach of any
+        machine. Truncating that output to its first <em>n</em> bits produces a controlled state space in
+        which generic collision-search algorithms can actually be implemented, measured and compared —
+        without making any claim that the hash function has been broken. HashFrontier is the apparatus
+        built around that setting: one frozen configuration, three search engines, eight widths, and an
+        evidence file for every reported pair.
+      </p>
+    </div>
+
+    <div class="grid g3x rv">
+      <article class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h9"/><path d="M17 15l2.5 2.5L23 14"/></svg></div>
+        <h3>Exact leading-bit truncation</h3>
+        <p>One shared routine masks the digest to exactly <em>n</em> leading bits for every engine. Non
+        byte-aligned widths keep <code class="inl">⌈n/8⌉</code> bytes with the final byte masked and all
+        padding bits cleared — 70 bits occupies nine bytes of which only the top six are meaningful, and a
+        state with non-zero padding is rejected outright.</p>
+      </article>
+
+      <article class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8.5 13.5h7"/><path d="M8.5 17h4"/></svg></div>
+        <h3>Unambiguous message encoding</h3>
+        <p>GHCF v1 length-delimits the domain, run identifier, salt and algorithm name, then appends a
+        two-byte width and an input-kind tag. Delimitation prevents ambiguous decompositions such as the
+        domain/run pair <code class="inl">ab/c</code> versus <code class="inl">a/bc</code>, and the tag stops
+        one byte string being read as both a counter and a walk state.</p>
+      </article>
+
+      <article class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
+        <h3>Three engines, one hash core</h3>
+        <p>A storage-intensive birthday table, a memory-efficient distinguished-point walk and an
+        independent Pollard-rho/Floyd search all call the same truncation and encoding code. What differs
+        between them is only what they choose to remember — which is exactly the variable the study is
+        trying to measure.</p>
+      </article>
+
+      <article class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1015.5-6.2"/><path d="M18.5 2v4h-4"/><path d="M12 7v5l3.4 2"/></svg></div>
+        <h3>Recoverable multi-process execution</h3>
+        <p>Immutable manifests, atomic JSON checkpoints and coordinator-owned SQLite state make a run
+        safe to interrupt and resume at any point. A resumed run rebuilds the expected manifest and
+        <strong>rejects a mismatch</strong> rather than silently continuing an incompatible experiment.</p>
+      </article>
+
+      <article class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/><path d="M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h8"/></svg></div>
+        <h3>Portable, independently verified evidence</h3>
+        <p>Every accepted result stores both inputs, both canonical messages, both complete SHA3-256
+        digests and the matching truncated digest. A separate verifier rebuilds and recomputes all of it
+        from the JSON alone — no live database — and a tampering test confirms it rejects a modified file.</p>
+      </article>
+
+      <article class="feat">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 15v-4"/><path d="M12.5 15V7"/><path d="M17 15v-6"/></svg></div>
+        <h3>Bounded runs stay bounded</h3>
+        <p>Seven of the 24 rows did not produce a committed collision. They are reported as measured work
+        at a frozen stop point — an evaluation budget reached, or a controlled interruption — and are never
+        re-labelled as evidence that a collision at that width is impossible.</p>
+      </article>
+    </div>
+
+    <div class="note rv" style="margin-top:26px">
+      <strong>Mandatory claim boundary.</strong> A <strong>verified collision</strong> here means two
+      distinct GHCF v1 messages have equal first <em>n</em> bits under SHA3-256. The complete 256-bit digests
+      in every supplied collision file are <em>different</em>. A bounded or interrupted run means only that
+      the recorded work did not produce a committed collision before that run stopped — it does not
+      represent that a collision exists, nor that one cannot. <strong>No complete SHA3-256 collision is
+      claimed.</strong>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ ARCHITECTURE ══════════════════════════ -->
+<section id="architecture" class="alt">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="sec-num">02 — Architecture</span>
+      <h2 class="sec-title">Workers hash; the coordinator decides</h2>
+      <p class="sec-lede">
+        GHCollision is a reusable Python package rather than three unrelated scripts. Every command-line
+        entry point first constructs the same immutable configuration, dispatches one of the three engines,
+        and writes evidence into a run-specific workspace. One rule keeps the result trustworthy under
+        multiprocessing: worker processes perform hashing only.
+      </p>
+    </div>
+
+    <div class="pipe rv">
+
+      <div class="stage">
+        <div class="stage-rail"><div class="node">1</div><div class="lineseg"></div></div>
+        <div class="stage-body">
+          <div class="stage-card">
+            <div class="stage-title"><h3>Freeze the configuration</h3><code>bin/ghcollision</code></div>
+            <p>The CLI builds a frozen <code class="inl">HashConfig</code> binding algorithm, truncated width,
+            domain, run identifier and salt. Its constructor normalises the algorithm spelling, rejects
+            variable-output functions such as SHAKE, validates <code class="inl">2 ≤ n ≤ 256</code>, and
+            derives the GHCF v1 message prefixes and the exact truncation mask once, up front.</p>
+            <div class="artefacts">
+              <span class="artefact">manifest.json</span>
+              <span class="artefact">domain = MSSD-Security-Labs-Generic-Hash-Collision</span>
+              <span class="artefact">encoding version 1</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-rail"><div class="node">2</div><div class="lineseg"></div></div>
+        <div class="stage-body">
+          <div class="stage-card">
+            <div class="stage-title"><h3>Allocate deterministic work</h3><code>engine coordinator</code></div>
+            <p>The coordinator assigns non-overlapping, self-contained work units: a chunk identifier plus
+            start counter and count for birthday; one chain identifier for DP; one attempt identifier for
+            rho. Queues are bounded by a per-engine <code class="inl">queue_depth</code>, and a single
+            keyboard interrupt requests a controlled stop that keeps committed batches, chains and
+            attempts durable.</p>
+            <div class="artefacts">
+              <span class="artefact">8 worker processes</span>
+              <span class="artefact">bounded queues</span>
+              <span class="artefact">deterministic work identifiers</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-rail"><div class="node">3</div><div class="lineseg"></div></div>
+        <div class="stage-body">
+          <div class="stage-card">
+            <div class="stage-title"><h3>Hash in worker processes</h3><code>ghcollision/workers.py</code></div>
+            <p>Worker initialisation reconstructs and caches the immutable configuration, the counter and
+            state prefixes, the state width, the final mask and the engine-specific limits. Birthday workers
+            return a packed byte buffer of reduced digest plus 16-byte counter; DP workers return an endpoint
+            with its start and length, or a capped-chain record; rho workers return a recovered collision, a
+            cap status or a restart status. <strong>Workers never write to the database.</strong></p>
+            <div class="artefacts">
+              <span class="artefact">packed record batches</span>
+              <span class="artefact">endpoint + length</span>
+              <span class="artefact">attempt status + counted hashes</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-rail"><div class="node">4</div><div class="lineseg"></div></div>
+        <div class="stage-body">
+          <div class="stage-card">
+            <div class="stage-title"><h3>Recover and accept a candidate</h3><code>birthday · distinguished · rho</code></div>
+            <p>A potential pair is never accepted from a database key alone. The coordinator calls the shared
+            result constructor, which re-encodes both inputs and recomputes both complete digests. DP aligns
+            the two trails, walks them in lockstep and recovers the distinct merge predecessors; a path that
+            coincides without yielding distinct predecessors is recorded as a false merge rather than a
+            result. Progress is committed transactionally with write-ahead logging.</p>
+            <div class="artefacts">
+              <span class="artefact">checkpoint.json</span>
+              <span class="artefact">SQLite + WAL workspace</span>
+              <span class="artefact">collision.json / summary.json</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-rail"><div class="node">5</div><div class="lineseg"></div></div>
+        <div class="stage-body">
+          <div class="stage-card">
+            <div class="stage-title"><h3>Verify and summarise independently</h3><code>ghcollision verify</code></div>
+            <p>The standalone verifier repeats the acceptance logic from the serialised file rather than
+            trusting the engine's in-memory objects. The matrix summariser then consolidates every workspace
+            into one frozen snapshot in JSON, CSV and Markdown — the single source from which every number
+            on this page is drawn.</p>
+            <div class="artefacts">
+              <span class="artefact">matrix_summary.json</span>
+              <span class="artefact">matrix_summary.csv</span>
+              <span class="artefact">verification_all_collisions.txt</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="grid g2 rv" style="margin-top:26px">
+      <div class="card">
+        <h4 class="mini">Resume safety</h4>
+        <p class="muted" style="font-size:14.2px">A new workspace receives an immutable
+        <code class="inl">manifest.json</code> containing the hash configuration, engine, software version,
+        environment and engine parameters. Resumption reconstructs the expected manifest and rejects a
+        mismatch — which is why changing worker count, DP bits, queue depth, chain cap, run identifier, salt
+        or width requires a new workspace rather than silently continuing an incompatible run.</p>
+        <ul class="plain" style="margin-top:14px">
+          <li><span class="mono">manifest.json</span> — immutable identity and execution parameters</li>
+          <li><span class="mono">checkpoint.json</span> — latest durable counters, resource indicators, status</li>
+          <li><span class="mono">SQLite database(s)</span> — search index and completed-work log</li>
+          <li><span class="mono">collision.json</span> — portable verified evidence when a collision is found</li>
+          <li><span class="mono">summary.json</span> — portable bounded / interrupted evidence when it is not</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4 class="mini">Recorded execution environment</h4>
+        <dl class="kvs">
+          <div class="kv"><dt>Platform</dt><dd class="mono" style="font-size:13px">Linux-6.8.0-124-generic-x86_64-with-glibc2.39</dd></div>
+          <div class="kv"><dt>Architecture</dt><dd class="mono" style="font-size:13px">x86_64</dd></div>
+          <div class="kv"><dt>Python</dt><dd class="mono" style="font-size:13px">CPython 3.12.3 via /usr/bin/python3</dd></div>
+          <div class="kv"><dt>Logical CPUs</dt><dd class="mono" style="font-size:13px">4</dd></div>
+          <div class="kv"><dt>Worker processes</dt><dd class="mono" style="font-size:13px">8</dd></div>
+          <div class="kv"><dt>Toolkit</dt><dd class="mono" style="font-size:13px">ghcollision 1.2.0</dd></div>
+        </dl>
+        <div class="note warn" style="margin-top:16px; font-size:13.4px">
+          Identical across all 24 manifests. Four logical CPUs against eight workers means the study
+          evaluates a <strong>two-to-one oversubscribed</strong> configuration, not an eight-core machine.
+          Measured rates therefore cannot establish clean 1-2-4-8 scaling, and CPU model, RAM, storage medium
+          and hypervisor scheduling are not recoverable from these results.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ WIDTHS ══════════════════════════ -->
+<section id="widths">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="sec-num">03 — The width sweep</span>
+      <h2 class="sec-title">Eight widths, each roughly a thousand times the last</h2>
+      <p class="sec-lede">
+        The experiment is a full factorial matrix over three engines and eight truncated widths —
+        <span class="mono">{birthday, DP, rho} × {10, 20, …, 80}</span>. Because the generic work factor is
+        <span class="mono">O(2^(n/2))</span>, every ten bits multiplies the expected effort by about 32, and
+        the storage a birthday table would need by about the same. The 10-to-80-bit matrix therefore spans
+        many orders of magnitude, and the width-specific parameters are declared rather than hidden.
+      </p>
+    </div>
+
+    <div class="grid g2 rv" style="align-items:start">
+      <div class="chart-card">
+        <div class="chart-head">
+          <div>
+            <h3 class="sub" style="margin-bottom:5px">Why storage decides it first</h3>
+            <p>Raw packed records at the generic birthday scale <span class="mono">E[Q] ≈ √(π/2)·2^(n/2)</span>,
+            multiplied by the reduced-digest-plus-counter record size. SQLite pages, indices, WAL files and
+            filesystem allocation add overhead on top.</p>
+          </div>
+        </div>
+        <div class="bars" id="storageBars"></div>
+        <p class="tbl-cap">Log-scaled. At 80 bits the raw records alone exceed 32 TiB before any database
+        overhead — a planning estimate, not a measured allocation, and the reason the birthday evaluation
+        caps at 60, 70 and 80 bits were deliberately <em>reduced</em> rather than raised.</p>
+      </div>
+
+      <div class="card">
+        <h4 class="mini">Width-specific parameters</h4>
+        <div class="tbl-wrap" style="border:0; background:transparent">
+          <table style="min-width:440px">
+            <thead><tr><th>Bits</th><th class="num">Birthday cap</th><th class="num">DP bits <span class="mono">d</span></th><th class="num">Mean chain</th><th class="num">Rho attempt cap</th></tr></thead>
+            <tbody id="paramsBody"></tbody>
+          </table>
+        </div>
+        <p class="tbl-cap">The DP schedule sets <span class="mono">d = ⌊0.3n⌋</span>, giving a mean chain
+        length of <span class="mono">2^d</span> and a cap of <span class="mono">8 · 2^d</span>. Rho applies a
+        100-million-hash cap per attempt from 50 bits onward — that cap bounds one attempt, after which the
+        engine schedules another rather than terminating the search.</p>
+      </div>
+    </div>
+
+    <div class="grid g3x rv" style="margin-top:16px">
+      <div class="card tight">
+        <h4 class="mini">Independent variables</h4>
+        <p class="muted" style="font-size:13.8px">Engine and truncated width. Nothing else moves between
+        rows.</p>
+      </div>
+      <div class="card tight">
+        <h4 class="mini">Shared controls</h4>
+        <p class="muted" style="font-size:13.8px">SHA3-256, GHCF v1 encoding, the domain string, an empty
+        salt, toolkit version 1.2.0 and the same recorded Linux/Python environment.</p>
+      </div>
+      <div class="card tight">
+        <h4 class="mini">Frozen snapshot</h4>
+        <p class="muted" style="font-size:13.8px">Every table and plot is generated from one
+        <span class="mono">matrix_summary.json</span>; every successful row is cross-checked against its own
+        <span class="mono">collision.json</span>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ METHOD ══════════════════════════ -->
+<section id="method" class="alt">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="sec-num">04 — Method</span>
+      <h2 class="sec-title">The controls that make the comparison mean something</h2>
+      <p class="sec-lede">
+        A matching database key is not evidence. Before any pair is called a collision it has to survive a
+        chain of definitions: what exactly was hashed, which bits are being compared, what counts as
+        completed work, and what a run that stopped early is allowed to claim.
+      </p>
+    </div>
+
+    <div class="card rv" style="margin-bottom:16px">
+      <h4 class="mini">GHCF v1 canonical message layout</h4>
+      <div class="bytes" style="margin-bottom:16px">
+        <div class="byte hl"><b>GHCF\x01</b>magic · 5 B</div>
+        <div class="byte"><b>L(D) ‖ D</b>domain</div>
+        <div class="byte"><b>L(R) ‖ R</b>run id</div>
+        <div class="byte"><b>L(S) ‖ S</b>salt</div>
+        <div class="byte"><b>L(A) ‖ A</b>algorithm</div>
+        <div class="byte hl"><b>n₁₆</b>width · 2 B</div>
+        <div class="byte tag"><b>00 | 01</b>input kind</div>
+        <div class="byte"><b>c₁₂₈ | x⌈n/8⌉</b>counter or state</div>
+      </div>
+      <p class="muted" style="font-size:14.2px">Every <span class="mono">L(·)</span> is a two-byte big-endian
+      length field. Counters always occupy 16 bytes; states occupy exactly
+      <span class="mono">⌈n/8⌉</span> bytes and must carry zero padding bits outside the configured width.
+      Chain and attempt starts are derived deterministically with SHAKE-256 over a separate start-domain
+      string, the immutable run prefix and a 128-bit sequence identifier — used purely as an internal
+      expander, never as the collision target — so repeating a run with the same immutable configuration
+      recreates the same starting states.</p>
+    </div>
+
+    <div class="grid g2 rv">
+      <div class="card">
+        <h3 class="sub">Acceptance criteria</h3>
+        <p class="muted" style="font-size:14.2px; margin-bottom:14px">A collision is accepted only if all
+        five hold. The standalone verifier re-checks every one of them from the serialised file.</p>
+        <ul class="ticks">
+          <li>The two canonical messages are <strong>distinct</strong>.</li>
+          <li>Both messages <strong>reconstruct</strong> from the configuration and stored inputs.</li>
+          <li>Both complete SHA3-256 digests <strong>recompute exactly</strong>.</li>
+          <li>Both stored reduced outputs <strong>recompute exactly</strong>.</li>
+          <li>The two reduced outputs are equal for <strong>exactly <em>n</em> leading bits</strong>.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 class="sub">Evidence controls</h3>
+        <p class="muted" style="font-size:14.2px; margin-bottom:14px">Four rules govern how the frozen
+        matrix may be read.</p>
+        <ul class="ticks">
+          <li>All summary plots use one frozen <span class="mono">matrix_summary.csv</span>; later checkpoint changes are not mixed into the snapshot.</li>
+          <li>Successful rows must have a verified <span class="mono">collision.json</span>, and bounded rows are <strong>never re-labelled</strong> as failures of the hash function.</li>
+          <li>The same encoded-message and truncation code is used by all three engines.</li>
+          <li>Rho-80, which completed zero counted hashes, is shown for completeness but excluded from every substantive rate comparison.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid g2 rv" style="margin-top:16px">
+      <div class="card">
+        <h3 class="sub">Outcome definitions</h3>
+        <dl class="kvs">
+          <div class="kv"><dt>Verified</dt><dd>A <span class="mono">collision.json</span> exists and passes the standalone verifier.</dd></div>
+          <div class="kv"><dt>Evaluation budget</dt><dd>A birthday run reached its configured global evaluation cap.</dd></div>
+          <div class="kv"><dt>Interrupted</dt><dd>A run was stopped; <span class="mono">summary.json</span> or <span class="mono">checkpoint.json</span> preserves the work completed at that point.</dd></div>
+          <div class="kv"><dt>Not a row</dt><dd>Missing or invalid evidence is never converted into a successful row.</dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <h3 class="sub">Recorded per row</h3>
+        <ul class="plain">
+          <li>Counted hash evaluations</li>
+          <li>Elapsed seconds and aggregate counted rate</li>
+          <li>Status and verified-collision flag</li>
+          <li>Birthday-model probability at the counted work level</li>
+          <li>Configured worker count and engine-specific parameters</li>
+          <li>Coordinator and peak reported worker RSS, and an estimated process-RSS upper bound</li>
+          <li>Workspace storage at the result or checkpoint</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="rv" style="margin-top:26px">
+      <h4 class="mini">Inside the code</h4>
+      <div class="tabs" id="codeTabs" role="tablist" aria-label="Source excerpts">
+        <button role="tab" aria-selected="true" data-code="trunc">core.py · truncation</button>
+        <button role="tab" aria-selected="false" data-code="encode">core.py · GHCF v1</button>
+        <button role="tab" aria-selected="false" data-code="dp">distinguished.py · retrace</button>
+        <button role="tab" aria-selected="false" data-code="rho">workers.py · Floyd walk</button>
+        <button role="tab" aria-selected="false" data-code="verify">verifier transcript</button>
+      </div>
+      <div id="codePanes"></div>
+      <p class="tbl-cap" id="codeCap"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ ENGINES ══════════════════════════ -->
+<section id="engines">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="sec-num">05 — Search engines</span>
+      <h2 class="sec-title">Three ways to find the same thing</h2>
+      <p class="sec-lede">
+        All three engines share one truncation routine, one message encoding and one coordinator. They
+        differ entirely in what they choose to remember — and that single difference is what produces the
+        time–memory behaviour the matrix measures.
+      </p>
+    </div>
+
+    <div class="grid g3x rv">
+      <article class="card" style="border-color:rgba(242,177,52,.28)">
+        <div class="stage-title" style="margin-bottom:12px">
+          <h3 style="font-size:1.06rem">Birthday table</h3>
+          <code style="color:var(--gold); background:rgba(242,177,52,.07); border-color:rgba(242,177,52,.18)">store everything</code>
+        </div>
+        <p class="muted" style="font-size:14px">Enumerates counters <span class="mono">c = 0, 1, 2, …</span>,
+        encodes each as a canonical message, computes <span class="mono">H<sub>n</sub>(m<sub>c</sub>)</span>
+        and inserts the pair into a sharded SQLite table. A collision is an immediate table match. The
+        submitted matrix uses 16 shards, 50,000 candidates per batch and queue depth two; completed batches
+        commit in chunk-identifier order so the next counter is always a contiguous, durable frontier.</p>
+        <pre style="border-radius:var(--radius-sm); border-top:1px solid var(--line); font-size:12.2px; margin-top:14px"><code>T = O(2^(n/2))   M = O(2^(n/2))</code></pre>
+        <p class="dim" style="font-size:12.6px; margin-top:12px">Advantage: conceptual simplicity and direct
+        collision detection. Cost: nearly one record per candidate.</p>
+      </article>
+
+      <article class="card" style="border-color:rgba(110,168,254,.28)">
+        <div class="stage-title" style="margin-bottom:12px">
+          <h3 style="font-size:1.06rem">Distinguished points</h3>
+          <code style="color:var(--blue); background:rgba(110,168,254,.07); border-color:rgba(110,168,254,.2)">store the endpoints</code>
+        </div>
+        <p class="muted" style="font-size:14px">Iterates
+        <span class="mono">F(x) = H<sub>n</sub>(EncodeState(x))</span> from a deterministic start until the
+        state's first <em>d</em> bits are zero. Only the chain identifier, start, endpoint and length are
+        stored. When two chains reach the same endpoint they merged earlier: the coordinator aligns their
+        remaining lengths, retraces both trails and identifies the distinct predecessors
+        <span class="mono">u ≠ v</span> with <span class="mono">F(u) = F(v)</span>.</p>
+        <pre style="border-radius:var(--radius-sm); border-top:1px solid var(--line); font-size:12.2px; margin-top:14px"><code>chain ≈ 2^d   d = ⌊0.3n⌋   cap = 8·2^d</code></pre>
+        <p class="dim" style="font-size:12.6px; margin-top:12px">Advantage: far fewer records than a full
+        table. Cost: reconstruction work and occasional capped trails.</p>
+      </article>
+
+      <article class="card" style="border-color:rgba(167,139,250,.28)">
+        <div class="stage-title" style="margin-bottom:12px">
+          <h3 style="font-size:1.06rem">Pollard rho / Floyd</h3>
+          <code style="color:var(--violet); background:rgba(167,139,250,.07); border-color:rgba(167,139,250,.2)">store almost nothing</code>
+        </div>
+        <p class="muted" style="font-size:14px">Advances a tortoise once and a hare twice per step until they
+        meet, then resets the tortoise to the start and walks both in lockstep to recover two distinct
+        predecessors mapping to the same state. Each attempt starts deterministically from its attempt
+        identifier and reports one of three statuses — collision, capped, or restart.</p>
+        <pre style="border-radius:var(--radius-sm); border-top:1px solid var(--line); font-size:12.2px; margin-top:14px"><code>t ← F(t)      h ← F(F(h))</code></pre>
+        <p class="dim" style="font-size:12.6px; margin-top:12px">Advantage: very little persistent state.
+        Cost: independent attempts share no partial work.</p>
+      </article>
+    </div>
+
+    <div class="tbl-wrap rv" style="margin-top:26px">
+      <table>
+        <thead><tr>
+          <th>Property</th>
+          <th>Birthday</th>
+          <th>Distinguished points</th>
+          <th>Pollard rho</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><span class="k">Persistent state</span></td><td>One record per retained candidate</td><td>One record per completed trail</td><td>Completed-attempt metadata; constant state per active walk</td></tr>
+          <tr><td><span class="k">Parallel sharing</span></td><td>Shared digest table</td><td>Shared endpoint table</td><td>Independent attempts</td></tr>
+          <tr><td><span class="k">Collision recovery</span></td><td>Immediate table match</td><td>Endpoint match plus trail retracing</td><td>Cycle detection plus predecessor recovery</td></tr>
+          <tr><td><span class="k">Expected bottleneck</span></td><td>Storage and database insertion</td><td>Long chains and reconstruction</td><td>Restart / repeated-work overhead</td></tr>
+          <tr><td><span class="k">Best role in this study</span></td><td>Baseline at smaller widths</td><td>Principal high-width engine</td><td>Low-storage comparison engine</td></tr>
+        </tbody>
+      </table>
+      <p class="tbl-cap">Expected qualitative properties, stated before the runs. Section 06 tests each of
+      them against the measured matrix. One constraint holds throughout: the three algorithms do not
+      generate statistically identical sample sequences, so the birthday approximation is used as an
+      indicative normalisation of counted work, not as a proof that every walk method has the same success
+      distribution as independent sampling.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ RESULTS ══════════════════════════ -->
+<section id="results" class="alt">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="sec-num">06 — Results</span>
+      <h2 class="sec-title">No engine dominates the whole range</h2>
+      <p class="sec-lede">
+        Birthday search verified collisions through 40 bits, Pollard rho through 60, and distinguished
+        points through 70. These are the observed frontiers of the submitted run matrix under one execution
+        plan — not mathematical limits of the algorithms. A different random mapping, a longer run, a
+        different DP parameter or a different worker allocation may move which width succeeds.
+      </p>
+    </div>
+
+    <div class="chart-card rv">
+      <div class="chart-head">
+        <div>
+          <h3 class="sub" style="margin-bottom:5px">Outcome matrix</h3>
+          <p>Every engine–width cell in the frozen snapshot. Select a cell to inspect its counted work,
+          runtime, resources and what actually happened in that run.</p>
+        </div>
+      </div>
+      <div class="hm-scroll">
+        <div class="mx" id="mxGrid"></div>
+      </div>
+      <div class="rowkey" style="margin-top:16px">
+        <span><i style="background:#2f9d78; width:11px; height:11px; border-radius:3px"></i>Verified — collision file passed standalone recomputation</span>
+        <span><i style="background:rgba(242,177,52,.5); width:11px; height:11px; border-radius:3px"></i>Evaluation budget — reached a configured cap</span>
+        <span><i style="background:rgba(126,145,170,.45); width:11px; height:11px; border-radius:3px"></i>Interrupted — stopped, work preserved</span>
+      </div>
+      <p class="tbl-cap">Interrupted cells are drawn in neutral grey rather than red on purpose: a stopped
+      run is measured work, not a failed search, and the report does not convert one into the other.</p>
+
+      <div class="detail" id="mxDetail"></div>
+    </div>
+
+    <div class="chart-card rv" style="margin-top:16px">
+      <div class="chart-head">
+        <div>
+          <h3 class="sub" style="margin-bottom:5px">Counted work, time and resources</h3>
+          <p id="chartBlurb">Counted hash evaluations by engine and width against the generic birthday
+          expectation. Hollow markers indicate incomplete work.</p>
+        </div>
+        <div class="seg">
+          <button data-metric="evals" aria-pressed="true">Work</button>
+          <button data-metric="elapsed" aria-pressed="false">Time</button>
+          <button data-metric="rate" aria-pressed="false">Throughput</button>
+          <button data-metric="rss" aria-pressed="false">RSS</button>
+          <button data-metric="workspace" aria-pressed="false">Storage</button>
+        </div>
+      </div>
+      <div class="scatter-wrap">
+        <svg class="lchart" id="mainChart" viewBox="0 0 900 380" role="img" aria-labelledby="chartTitle"><title id="chartTitle">Metric by engine and truncated width</title></svg>
+      </div>
+      <div class="key">
+        <span><i style="background:#f2b134"></i>Birthday</span>
+        <span><i style="background:#6ea8fe"></i>Distinguished points</span>
+        <span><i style="background:#a78bfa"></i>Pollard rho</span>
+        <span id="expKey"><svg width="26" height="8" style="margin-right:2px"><line x1="0" y1="4" x2="26" y2="4" stroke="#7e91aa" stroke-width="1.4" stroke-dasharray="5 5"/></svg>√(π/2)·2^(n/2) expectation</span>
+        <span class="dim">Hollow marker = incomplete work</span>
+      </div>
+      <p class="tbl-cap" id="chartNote"></p>
+    </div>
+
+    <div class="grid g3x rv" style="margin-top:16px">
+      <div class="card">
+        <h4 class="mini" style="color:var(--gold)">Birthday — verified to 40 bits</h4>
+        <p class="muted" style="font-size:13.8px">The 40-bit run processed 1.2 M hashes in 11.10 s at
+        108,151 hashes/s, storing 1,190,775 records across 16 shards in 125.15 MiB. At 50 bits the workspace
+        reached <strong>495.60 MiB</strong> and the RSS upper bound 781.79 MiB — the two highest values
+        anywhere in the matrix — before interruption, and without reaching its 50 M cap.</p>
+      </div>
+      <div class="card">
+        <h4 class="mini" style="color:var(--blue)">DP — verified to 70 bits</h4>
+        <p class="muted" style="font-size:13.8px">The 70-bit run used 21 distinguished bits, completed 2,624
+        chains and stored 2,623 endpoints. One duplicate endpoint joined chains 2101 and 2616; retracing cost
+        7,152,782 extra hashes, found no false merge, and recovered the distinct predecessors. Total
+        5,310,915,809 hashes in 56 m 53 s at 1.556 M/s — in <strong>4.16 MiB</strong>.</p>
+      </div>
+      <div class="card">
+        <h4 class="mini" style="color:var(--violet)">Rho — verified to 60 bits</h4>
+        <p class="muted" style="font-size:13.8px">At 60 bits rho completed 893 attempts and 89,236,658,241
+        hashes over 13 h 27 m. The winning attempt was number 897 and used only 36,659,133 of those hashes
+        itself — the remainder is restart work that independent attempts cannot share. Workspace stayed at
+        3.68 MiB.</p>
+      </div>
+    </div>
+
+    <div class="grid g2 rv" style="margin-top:16px; align-items:start">
+      <div class="chart-card">
+        <div class="chart-head"><div>
+          <h3 class="sub" style="margin-bottom:5px">At 50 bits — all three comparable</h3>
+          <p>Birthday-50 was interrupted before its cap, so its bars are partial work — and the storage bar
+          is exactly the point.</p>
+        </div></div>
+        <div id="cmp50"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-head"><div>
+          <h3 class="sub" style="margin-bottom:5px">At 60 bits — DP versus rho</h3>
+          <p>Both rows are verified collisions at the same width, reached at very different prices.</p>
+        </div></div>
+        <div id="cmp60"></div>
+      </div>
+    </div>
+
+    <div class="grid g3x rv" style="margin-top:16px">
+      <div class="card tight">
+        <h4 class="mini">Birthday pays in storage</h4>
+        <p class="muted" style="font-size:13.6px">Its partial 50-bit workspace is <strong>122×</strong>
+        larger than the successful 50-bit DP workspace, and its RSS upper bound <strong>3.93×</strong>
+        higher. It becomes impractical well before the generic work scale at 60–80 bits.</p>
+      </div>
+      <div class="card tight">
+        <h4 class="mini">DP pays in reconstruction</h4>
+        <p class="muted" style="font-size:13.6px">It reconstructs only when two endpoints match. Its
+        successful 70-bit run consumed 5.31 billion counted hashes while holding just
+        <strong>4.16 MiB</strong> — the best observed balance between search depth and persistent storage on
+        this VM.</p>
+      </div>
+      <div class="card tight">
+        <h4 class="mini">Rho pays in repeated work</h4>
+        <p class="muted" style="font-size:13.6px">Only 54.07 KiB at 50 bits, but independent attempts share
+        no progress. At 60 bits it needs <strong>327.8×</strong> the counted hashes and
+        <strong>181.5×</strong> the elapsed time of DP — a consequence of this independent-restart
+        implementation, not proof of a 327-fold algorithmic gap.</p>
+      </div>
+    </div>
+
+    <div class="tbl-wrap rv" style="margin-top:26px">
+      <table id="matrixTable">
+        <thead><tr>
+          <th data-sort="engine">Engine</th>
+          <th data-sort="bits" class="num">Bits</th>
+          <th data-sort="status">Status</th>
+          <th data-sort="evals" class="num">Evaluations</th>
+          <th data-sort="elapsed" class="num">Elapsed</th>
+          <th data-sort="rate" class="num">Rate (H/s)</th>
+          <th data-sort="rss" class="num">RSS (MiB)</th>
+          <th data-sort="workspace" class="num">Workspace</th>
+        </tr></thead>
+        <tbody id="matrixBody"></tbody>
+      </table>
+      <p class="tbl-cap">Complete frozen 24-configuration result matrix, generated directly from
+      <span class="mono">matrix_summary.csv</span>. <em>Interrupted</em> preserves measured work at the
+      frozen stop point and must not be interpreted as proof that a collision cannot occur. Click any header
+      to sort; click any row to inspect it in the outcome matrix above.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ EVIDENCE ══════════════════════════ -->
+<section id="evidence">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="sec-num">07 — Verified collision evidence</span>
+      <h2 class="sec-title">Seventeen pairs, replayed from disk</h2>
+      <p class="sec-lede">
+        All 17 collision files were enumerated and passed to the standalone verifier while the report was
+        being prepared. Each one reported <span class="mono">PASS</span> on every check, and the transcript
+        ends with <span class="mono">VERIFIED_PASS=17 TOTAL=17</span>. That independent replay is the basis
+        for using the word <em>verified</em> anywhere on this page.
+      </p>
+    </div>
+
+    <div class="digest-panel rv">
+      <div class="digest-head">
+        <span class="t">Widest verified result · distinguished points · 70 bits</span>
+        <span class="state verified">Verified</span>
+      </div>
+      <div class="digest-body">
+        <div class="drow">
+          <span class="dl">m₁ →</span>
+          <span class="dg"><span class="pre">a8274903fe5c374a3</span><span class="post">37cacd9c29f2099749b5c74dce26a01936535f044bb03c7</span></span>
+        </div>
+        <div class="drow">
+          <span class="dl">m₂ →</span>
+          <span class="dg"><span class="pre">a8274903fe5c374a3</span><span class="post">1838958ee6f41bd0456138a5358182ffeae76a1f429c710</span></span>
+        </div>
+        <p class="dim" style="font-size:13.6px; margin-top:16px; padding-top:16px; border-top:1px dashed var(--line); max-width:80ch">
+          Two distinct GHCF v1 messages whose complete SHA3-256 digests agree on the first
+          <strong style="color:var(--ink-2)">70 bits</strong>. The highlight covers the 17 shared hex digits —
+          68 bits; the remaining two live in the next nibble, where <span class="mono">3</span> = 0011 and
+          <span class="mono">1</span> = 0001 still agree on their leading <span class="mono">00</span>.
+          Because 70 is not byte-aligned, the ninth stored byte is masked to its top six bits and the two low
+          padding bits are cleared. <strong style="color:var(--ink-2)">This is not a SHA3-256
+          collision</strong> — the complete 256-bit digests differ, and no claim is made about them.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid g2 rv" style="margin-top:16px">
+      <div class="digest-panel">
+        <div class="digest-head">
+          <span class="t">Birthday · 40 bits</span>
+          <span class="state verified">Verified</span>
+        </div>
+        <div class="digest-body">
+          <div class="dg" style="margin-bottom:9px"><span class="pre">773b19cfaa</span><span class="post">2fdb9e175093d937cc72fb8e8046d42643ef4b58d6731aaed4076a</span></div>
+          <div class="dg"><span class="pre">773b19cfaa</span><span class="post">45259f5b062ce826d545c9acc469c96b495201b1b53b5fddb70d87</span></div>
+          <p class="dim" style="font-size:12.8px; margin-top:14px">Counters <span class="mono">1196635</span>
+          and <span class="mono">760453</span>, encoded as 16-byte big-endian values. 40 bits is
+          byte-aligned, so the shared prefix is exactly ten hex digits.</p>
+        </div>
+      </div>
+      <div class="digest-panel">
+        <div class="digest-head">
+          <span class="t">Pollard rho · 60 bits</span>
+          <span class="state verified">Verified</span>
+        </div>
+        <div class="digest-body">
+          <div class="dg" style="margin-bottom:9px"><span class="pre">5e022aabafa9591</span><span class="post">e2735eb4a97953ef4cf5bfed6b08c64778a7ce2afde07d987</span></div>
+          <div class="dg"><span class="pre">5e022aabafa9591</span><span class="post">28d40551a446cb688b8dc4c255686439f22b0be2b14f1b0b3</span></div>
+          <p class="dim" style="font-size:12.8px; margin-top:14px">Reduced states
+          <span class="mono">556dc7664d2641f0</span> and <span class="mono">60c426c0f8310480</span>. 60 bits
+          is 15 hex digits; the eighth stored byte keeps only its top four bits.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tbl-wrap rv" style="margin-top:26px">
+      <table class="dense">
+        <thead><tr><th>Engine</th><th class="num">Bits</th><th>x₁</th><th>x₂</th><th>Matching truncated output</th></tr></thead>
+        <tbody id="evBody"></tbody>
+      </table>
+      <p class="tbl-cap">Catalogue of all 17 independently verified collision pairs. For birthday rows,
+      x₁ and x₂ are decimal counters; for DP and rho rows they are hexadecimal reduced-state values occupying
+      ⌈n/8⌉ bytes with zero padding outside the configured width. The corresponding JSON files preserve the
+      complete messages and full digests.</p>
+    </div>
+
+    <div class="grid g2 rv" style="margin-top:26px">
+      <div class="card">
+        <h4 class="mini">Portable evidence-file schema</h4>
+        <dl class="kvs">
+          <div class="kv"><dt>Claim scope</dt><dd>A textual statement that only the configured leading bits collide</dd></div>
+          <div class="kv"><dt>Configuration</dt><dd>Algorithm, truncated width, domain, run identifier, salt, state width and encoding version</dd></div>
+          <div class="kv"><dt>Input encoding</dt><dd>GHCF v1 description, input kind and magic bytes</dd></div>
+          <div class="kv"><dt>Collision</dt><dd>Both source inputs, both canonical messages, both full digests and the matching truncated digest</dd></div>
+          <div class="kv"><dt>Statistics</dt><dd>Engine-specific counted work, elapsed time, resource indicators and recovery metadata</dd></div>
+        </dl>
+        <p class="dim" style="font-size:12.8px; margin-top:14px">Every file declares
+        <span class="mono">messages_distinct=true</span>, <span class="mono">full_digests_equal=false</span>
+        and <span class="mono">verified=true</span>.</p>
+      </div>
+      <div class="card">
+        <h4 class="mini">Verifier transcript</h4>
+<pre style="border-radius:var(--radius-sm); border-top:1px solid var(--line); font-size:12.3px"><code><span class="pr">PASS</span>: messages are distinct
+<span class="pr">PASS</span>: truncated outputs are equal
+<span class="pr">PASS</span>: message1 encoding matches
+<span class="pr">PASS</span>: message2 encoding matches
+<span class="pr">PASS</span>: full digest 1 matches
+<span class="pr">PASS</span>: full digest 2 matches
+<span class="pr">PASS</span>: truncated digest matches
+Overall: <span class="pr">PASS</span>
+
+<span class="cm"># end of verification_all_collisions.txt</span>
+<span class="nu">VERIFIED_PASS</span>=<span class="nu">17</span> <span class="nu">TOTAL</span>=<span class="nu">17</span></code></pre>
+        <p class="dim" style="font-size:12.8px; margin-top:14px">The verifier rebuilds the configuration and
+        both canonical messages from the JSON alone — it never trusts the engine's in-memory objects. A
+        tampering test replaces one stored full digest with zero bytes and confirms the file is rejected.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ DISCUSSION ══════════════════════════ -->
+<section id="discussion" class="alt">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="sec-num">08 — Discussion</span>
+      <h2 class="sec-title">A frontier is an observation, not a limit</h2>
+      <p class="sec-lede">
+        The four research questions are answered from the frozen snapshot, and each answer is qualified by
+        what the snapshot can and cannot support. Being explicit about the second part is what makes the
+        first part worth stating.
+      </p>
+    </div>
+
+    <div class="rv">
+      <details class="rq" open>
+        <summary><span class="tagn">RQ1</span>At which widths does each engine produce an independently verified collision?<span class="chev">▼</span></summary>
+        <div class="rq-body">
+          <p>Birthday verified through 40 bits, DP through 70 and rho through 60 — DP is therefore the widest
+          successful method in the present evidence set. The seven non-successful rows consist of three
+          birthday evaluation-budget stops (60, 70, 80), the birthday-50 interruption, the DP-80
+          interruption, the rho-70 interruption and a rho-80 launch with zero completed hashes.</p>
+          <p>These frontiers are <strong>not mathematical limits</strong>. A different random mapping, a
+          longer run, a different DP parameter, a different worker/core allocation or a different
+          implementation may alter which width succeeds.</p>
+        </div>
+      </details>
+
+      <details class="rq">
+        <summary><span class="tagn">RQ2</span>How do counted work, runtime, throughput, memory and storage change with width and engine?<span class="chev">▼</span></summary>
+        <div class="rq-body">
+          <p>The matrix strongly supports the expected storage ordering. <strong>Birthday</strong> stores
+          nearly one record per retained candidate, reaching 495.60 MiB after 16.05 million 50-bit
+          evaluations. <strong>DP</strong> stores completed endpoints and reconstructs only on a match — its
+          successful 70-bit run uses 4.16 MiB despite 5.31 billion counted hashes. <strong>Rho</strong>
+          stores little path state (54.07 KiB at 50 bits) but shares no progress between attempts: it
+          requires 5.15× the counted hashes and 12.91× the elapsed time of DP at 50 bits, and 327.8× the
+          hashes and 181.5× the time at 60 bits.</p>
+          <p>Birthday's end-to-end throughput is lower because hashing is coupled to record packing, shard
+          partitioning, primary-key lookup and durable insertion. DP and rho spend a much larger fraction of
+          high-width runtime inside repeated transition hashing. The rate curves therefore reflect
+          implementation work, not merely the cost of SHA3-256.</p>
+        </div>
+      </details>
+
+      <details class="rq">
+        <summary><span class="tagn">RQ3</span>Is there a complete reproducibility path from input construction to standalone verification?<span class="chev">▼</span></summary>
+        <div class="rq-body">
+          <ul class="ticks" style="margin-bottom:14px">
+            <li>GHCF v1 defines exactly what is hashed.</li>
+            <li>Immutable manifests bind configuration, environment and engine parameters.</li>
+            <li>Deterministic work identifiers and starting states make replay possible.</li>
+            <li>Checkpoints and coordinator-owned SQLite state preserve completed work.</li>
+            <li>A resumed run rejects parameter mismatches rather than silently corrupting the experiment.</li>
+            <li>Collision files contain complete messages and full digests, not only reduced outputs.</li>
+            <li>A separate verifier independently rebuilds and recomputes every claim.</li>
+          </ul>
+          <p>26 passing tests and the 17-of-17 standalone replay provide concrete evidence for this chain.
+          Reproducibility of the <em>collision evidence</em> is however stronger than reproducibility of the
+          <em>performance numbers</em>, which depend on CPU allocation, hypervisor scheduling, storage
+          device, background load and process oversubscription.</p>
+        </div>
+      </details>
+
+      <details class="rq">
+        <summary><span class="tagn">RQ4</span>What practical limiting point does the evidence support at 80 bits?<span class="chev">▼</span></summary>
+        <div class="rq-body">
+          <p>DP-80 is the most informative high-width observation: 288.289 billion hashes at 2.345 million
+          hashes/s over 34.14 hours, corresponding to an idealised birthday-model probability of
+          <strong>3.38%</strong>. The work for 50% probability is approximately
+          <span class="mono">q₀.₅ ≈ √(2 ln 2)·2⁴⁰ ≈ 1.295 × 10¹²</span> — about <strong>6.39 days from
+          zero</strong> at the observed end-to-end rate, or roughly 4.97 further days beyond the frozen
+          checkpoint.</p>
+          <p>The snapshot therefore supports the conclusion that 80 bits is a <strong>multi-day rather than
+          sub-day target</strong> on this recorded configuration, and nothing stronger. Rho-80 cannot be used
+          to estimate a frontier because it completed zero counted hashes; birthday-80 is not comparable to a
+          full search because its one-million-evaluation cap corresponds to a collision probability of
+          4.14 × 10⁻¹³. The only substantive 80-bit evidence is the interrupted DP run.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="rv" style="margin-top:26px">
+      <h3 class="sub">Threats to validity</h3>
+      <div class="grid g3x">
+        <div class="card tight">
+          <h4 class="mini">Single-run stochastic variation</h4>
+          <p class="muted" style="font-size:13.6px">Only one frozen row is analysed per engine–width pair,
+          and collision time has high variance. Early successes such as DP-60 at 272.25 million evaluations
+          must not be treated as expected values; repeated independent run identifiers are required to
+          estimate median work and confidence intervals.</p>
+        </div>
+        <div class="card tight">
+          <h4 class="mini">Unequal stopping rules</h4>
+          <p class="muted" style="font-size:13.6px">Birthday uses global evaluation caps, whereas DP and rho
+          were generally stopped by collision or manual interruption, and rho also applies per-attempt caps.
+          The matrix compares realistic method-specific operation, not equal work budgets.</p>
+        </div>
+        <div class="card tight">
+          <h4 class="mini">Walk dependence</h4>
+          <p class="muted" style="font-size:13.6px">The birthday approximation assumes independent uniform
+          samples. DP and rho generate iterated walks with merging and cycles, so the stored
+          <span class="mono">birthday_model_probability</span> values are useful scale indicators, not
+          calibrated p-values for the exact walk processes.</p>
+        </div>
+        <div class="card tight">
+          <h4 class="mini">Hardware and oversubscription</h4>
+          <p class="muted" style="font-size:13.6px">The manifests report four logical CPUs and eight workers.
+          No genuine 8- or 16-core measurement is present, so worker oversubscription may alter
+          context-switching, cache behaviour and throughput. CPU model, RAM size, disk type, VM host
+          contention and affinity are not recoverable from these results.</p>
+        </div>
+        <div class="card tight">
+          <h4 class="mini">Memory measurement</h4>
+          <p class="muted" style="font-size:13.6px">The process-RSS field is an estimated upper bound based
+          on coordinator and reported worker values, not a continuously sampled aggregate peak. Workers may
+          report memory at task completion rather than at the true peak. Storage values are more directly
+          auditable, though they depend on WAL and checkpoint timing.</p>
+        </div>
+        <div class="card tight">
+          <h4 class="mini">Security interpretation</h4>
+          <p class="muted" style="font-size:13.6px">The experiment neither exploits a structural weakness in
+          SHA3-256 nor demonstrates a collision in the complete digest. The framework is appropriate for
+          controlled education and benchmarking; presenting these reduced-output pairs as evidence that
+          SHA3-256 is broken would be technically incorrect.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ ENGINEERING ══════════════════════════ -->
+<section id="engineering">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="sec-num">09 — Engineering</span>
+      <h2 class="sec-title">Repository, tests and reproduction</h2>
+      <p class="sec-lede">
+        GHCollision v1.2.0 — a reusable Python package with three coordinated engines, a standalone verifier,
+        a benchmark-derived limit planner and a matrix summariser, all sharing one hash and encoding core.
+      </p>
+    </div>
+
+    <div class="grid g2 rv">
+      <div class="card">
+        <h4 class="mini">Repository layout</h4>
+<pre style="border-radius:var(--radius-sm); border-top:1px solid var(--line); font-size:12.2px"><code>HashFrontier/
+├── ghcollision/
+│   ├── core.py            <span class="cm"># HashConfig, GHCF v1, truncation,</span>
+│   │                      <span class="cm">#   deterministic starts, result build</span>
+│   ├── workers.py         <span class="cm"># process init, birthday batch,</span>
+│   │                      <span class="cm">#   DP chain, rho attempt workers</span>
+│   ├── birthday.py        <span class="cm"># sharded store, ordered commits</span>
+│   ├── distinguished.py   <span class="cm"># endpoint store, path retracing</span>
+│   ├── rho.py             <span class="cm"># durable attempts, cap accounting</span>
+│   ├── manifest.py        <span class="cm"># immutable-config validation</span>
+│   ├── verification.py    <span class="cm"># standalone result verification</span>
+│   ├── limit_study.py     <span class="cm"># benchmark-derived planning</span>
+│   └── cli.py             <span class="cm"># entry points</span>
+├── tools/
+│   └── summarize_collision_matrix.py
+├── examples/              <span class="cm"># run_sha3_10_80_pipeline.sh, …</span>
+├── tests/                 <span class="cm"># 26 tests, no real run data needed</span>
+└── bin/ghcollision</code></pre>
+      </div>
+
+      <div class="card">
+        <h4 class="mini">What the test suite guarantees</h4>
+        <ul class="ticks">
+          <li>Exact leading-bit truncation at byte-aligned and non-aligned widths, including final-byte masking and padding-bit rejection.</li>
+          <li>GHCF v1 encoding round-trips, and that counters and states can never be decoded interchangeably.</li>
+          <li>Deterministic starts reproduce for a given immutable configuration and sequence identifier.</li>
+          <li>Engine behaviour for all three search strategies, including capped and restart paths.</li>
+          <li>Result construction rejects equal messages and non-matching reduced outputs.</li>
+          <li>Standalone verification of portable files, plus legacy <span class="mono">prefix ‖ input</span> pair compatibility.</li>
+          <li>Recovery from a narrow crash window in which a duplicate endpoint is committed but the portable collision file has not yet been written.</li>
+        </ul>
+        <p class="dim" style="font-size:12.6px; margin-top:16px">26 tests in total, all passing on the
+        submitted version, and all runnable without any real experiment data.</p>
+      </div>
+    </div>
+
+    <div class="grid g2 rv" style="margin-top:16px">
+      <div class="card">
+        <h4 class="mini">Setup and validation</h4>
+<pre style="border-radius:var(--radius-sm); border-top:1px solid var(--line); font-size:12.3px"><code>unzip HashFrontier.zip
+<span class="fn">cd</span> HashFrontier
+
+<span class="fn">find</span> . -type f -name <span class="st">"*.sh"</span> -exec <span class="fn">sed</span> -i <span class="st">'s/\r$//'</span> {} +
+<span class="fn">chmod</span> +x bin/ghcollision tools/*.py
+
+./setup_kali.sh
+./bin/ghcollision --version
+python3 -m unittest discover -s tests -v</code></pre>
+        <p class="dim" style="font-size:12.6px; margin-top:14px">The submitted version reports
+        <span class="mono">ghcollision 1.2.0</span>. Capture the VM allocation with
+        <span class="mono">nproc</span>, <span class="mono">free -h</span>, <span class="mono">df -h .</span>
+        and <span class="mono">./tools/system_snapshot.sh</span> before any new performance campaign.</p>
+      </div>
+
+      <div class="card">
+        <h4 class="mini">Reproducing the matrix</h4>
+<pre style="border-radius:var(--radius-sm); border-top:1px solid var(--line); font-size:12.3px"><code><span class="nu">WORKERS</span>=8 \
+<span class="nu">BITS_LIST</span>=<span class="st">"10 20 30 40 50 60 70 80"</span> \
+<span class="nu">ENGINES</span>=<span class="st">"birthday dp rho"</span> \
+./examples/run_sha3_10_80_pipeline.sh
+
+<span class="cm"># verify one result, then rebuild the summary</span>
+./bin/ghcollision <span class="fn">verify</span> \
+  runs/sha3-10-80/dp/70-bit/collision.json
+./examples/summarize_sha3_10_80.sh
+<span class="fn">cat</span> evidence/sha3-10-80/matrix_summary.md</code></pre>
+        <div class="note warn" style="margin-top:16px; font-size:13.4px">
+          The pipeline passes no overall <code class="inl">--time-limit</code>. Birthday remains bounded by
+          global evaluation caps and rho by per-attempt caps, but a DP run continues until collision or
+          manual interruption — which is why several rows are labelled <em>interrupted</em>. Removing both
+          <code class="inl">--time-limit</code> and <code class="inl">--max-evaluations</code> from a direct
+          birthday run makes it globally unbounded, and unsafe at high widths: persistent storage can grow
+          until the VM disk is exhausted.
+        </div>
+      </div>
+    </div>
+
+    <div class="rv" style="margin-top:26px">
+      <h4 class="mini">Recommended future work</h4>
+      <div class="grid g2" style="gap:16px">
+        <ul class="plain">
+          <li>Repeat each 40–80-bit configuration with several independent run identifiers and report medians and distributions.</li>
+          <li>Re-run worker sweeps on VMs with genuinely allocated 1, 2, 4, 8 and 16 logical CPUs for real speedup evaluation.</li>
+          <li>Add matched wall-time and matched hash-budget comparisons alongside the collision-until-found runs.</li>
+          <li>Tune distinguished bits against measured chain throughput and endpoint-storage constraints.</li>
+        </ul>
+        <ul class="plain">
+          <li>Measure process memory externally at regular intervals and record CPU model, RAM, disk and hypervisor allocation.</li>
+          <li>Investigate cooperative parallel rho variants that share distinguished endpoints rather than relying only on independent Floyd attempts — the highest-value extension.</li>
+          <li>Retain check-summed, immutable evidence snapshots for each newly generated result set.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════ FOOTER ══════════════════════════ -->
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div class="fl">
+        <h4>HashFrontier</h4>
+        <p>A Reproducible Multi-Core Evaluation of Birthday, Distinguished-Point, and Pollard-Rho Collision
+        Search on Truncated SHA3-256 — a reproducible experimental platform and an auditable 10–80-bit
+        evidence matrix mapping the practical behaviour of three generic collision-search strategies under
+        one declared Linux VM configuration.</p>
+        <p style="margin-top:12px">Chew Wei Ze Alvin · MSSD 51.507 Security Tools Lab 2, Proposed Project —
+        Generic Hash Collision · M.Sc. Security by Design, Singapore University of Technology and Design ·
+        submitted 24 August 2026.</p>
+      </div>
+      <div>
+        <h4 style="margin-bottom:14px">Links</h4>
+        <div class="foot-links" style="flex-direction:column; align-items:flex-start">
+          <a class="btn" href="https://github.com/alvin21mfmlai/HashFrontier" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 00-3.79 23.4c.6.11.82-.26.82-.58v-2.2c-3.34.72-4.04-1.6-4.04-1.6-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.09 1.85 1.24 1.85 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.96 0-1.32.47-2.39 1.24-3.23-.12-.31-.54-1.53.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 016 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.18.77.84 1.24 1.91 1.24 3.23 0 4.63-2.8 5.65-5.48 5.95.43.37.82 1.1.82 2.22v3.29c0 .32.21.7.82.58A12 12 0 0012 .5z"/></svg>
+            Repository
+          </a>
+          <a class="btn" href="#results">Results &amp; evidence</a>
+          <a class="btn" href="#top">Back to top ↑</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-rule"></div>
+    <div class="foot-bot">
+      <span>© 2026 Chew Wei Ze Alvin</span>
+      <span>SHA3-256 · 10–80 bits · 24 configurations · 17 verified · no full-digest collision claimed</span>
+    </div>
+  </div>
+</footer>
+
+</main>
+<div id="tip" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* =============================================================
+   DATA — every figure below is transcribed from the final report
+   (MSSD 51.507 HashFrontier, tables 1, 2, 3, 5, 6, 7, 9, 10 and
+   sections 6.2-6.4 / 7) and the frozen matrix_summary.json.
+   Editing a constant updates every chart, table and tooltip.
+   ============================================================= */
+
+var KiB = 1024, MiB = 1024 * 1024;
+
+/* Report Table 9 — complete frozen 24-configuration result matrix.
+   elapsed is in seconds; elapsedText is the report's own rendering. */
+var MATRIX = [
+ {engine:"birthday", bits:10, status:"verified",    evals:10000,         elapsed:0.21,      elapsedText:"0.21 s",   rate:48342,   rss:176.16, workspace:45.19*KiB,  wsText:"45.19 KiB"},
+ {engine:"birthday", bits:20, status:"verified",    evals:50000,         elapsed:0.45,      elapsedText:"0.45 s",   rate:111097,  rss:188.94, workspace:45.19*KiB,  wsText:"45.19 KiB"},
+ {engine:"birthday", bits:30, status:"verified",    evals:50000,         elapsed:1.04,      elapsedText:"1.04 s",   rate:47923,   rss:189.22, workspace:475.16*KiB, wsText:"475.16 KiB"},
+ {engine:"birthday", bits:40, status:"verified",    evals:1200000,       elapsed:11.10,     elapsedText:"11.10 s",  rate:108151,  rss:282.00, workspace:125.15*MiB, wsText:"125.15 MiB"},
+ {engine:"birthday", bits:50, status:"interrupted", evals:16050000,      elapsed:364,       elapsedText:"6 m 04 s", rate:44096,   rss:781.79, workspace:495.60*MiB, wsText:"495.60 MiB"},
+ {engine:"birthday", bits:60, status:"budget",      evals:5000000,       elapsed:70,        elapsedText:"1 m 10 s", rate:71114,   rss:417.73, workspace:159.10*MiB, wsText:"159.10 MiB"},
+ {engine:"birthday", bits:70, status:"budget",      evals:2000000,       elapsed:21.10,     elapsedText:"21.10 s",  rate:94788,   rss:312.02, workspace:66.10*MiB,  wsText:"66.10 MiB"},
+ {engine:"birthday", bits:80, status:"budget",      evals:1000000,       elapsed:8.61,      elapsedText:"8.61 s",   rate:116176,  rss:285.42, workspace:34.11*MiB,  wsText:"34.11 MiB"},
+ {engine:"dp", bits:10, status:"verified",    evals:34,           elapsed:0.32,      elapsedText:"0.32 s",   rate:105,     rss:197.69, workspace:97.66*KiB,  wsText:"97.66 KiB"},
+ {engine:"dp", bits:20, status:"verified",    evals:686,          elapsed:0.29,      elapsedText:"0.29 s",   rate:2336,    rss:198.27, workspace:137.90*KiB, wsText:"137.90 KiB"},
+ {engine:"dp", bits:30, status:"verified",    evals:58931,        elapsed:0.58,      elapsedText:"0.58 s",   rate:101465,  rss:197.93, workspace:998.92*KiB, wsText:"998.92 KiB"},
+ {engine:"dp", bits:40, status:"verified",    evals:688527,       elapsed:0.98,      elapsedText:"0.98 s",   rate:704111,  rss:199.39, workspace:1.35*MiB,   wsText:"1.35 MiB"},
+ {engine:"dp", bits:50, status:"verified",    evals:52097844,     elapsed:47.84,     elapsedText:"47.84 s",  rate:1088892, rss:199.03, workspace:4.06*MiB,   wsText:"4.06 MiB"},
+ {engine:"dp", bits:60, status:"verified",    evals:272249535,    elapsed:267,       elapsedText:"4 m 27 s", rate:1019931, rss:198.28, workspace:4.03*MiB,   wsText:"4.03 MiB"},
+ {engine:"dp", bits:70, status:"verified",    evals:5310915809,   elapsed:3413,      elapsedText:"56 m 53 s",rate:1555916, rss:198.86, workspace:4.16*MiB,   wsText:"4.16 MiB"},
+ {engine:"dp", bits:80, status:"interrupted", evals:288288648269, elapsed:122920.84, elapsedText:"1 d 10 h", rate:2345319, rss:203.34, workspace:1.29*MiB,   wsText:"1.29 MiB"},
+ {engine:"rho", bits:10, status:"verified",    evals:311,          elapsed:0.28,  elapsedText:"0.28 s",    rate:1094,    rss:198.04, workspace:49.21*KiB, wsText:"49.21 KiB"},
+ {engine:"rho", bits:20, status:"verified",    evals:5417,         elapsed:0.35,  elapsedText:"0.35 s",    rate:15283,   rss:198.65, workspace:49.21*KiB, wsText:"49.21 KiB"},
+ {engine:"rho", bits:30, status:"verified",    evals:69724,        elapsed:0.40,  elapsedText:"0.40 s",    rate:174391,  rss:197.93, workspace:49.21*KiB, wsText:"49.21 KiB"},
+ {engine:"rho", bits:40, status:"verified",    evals:320734,       elapsed:2.00,  elapsedText:"2.00 s",    rate:160374,  rss:199.62, workspace:49.21*KiB, wsText:"49.21 KiB"},
+ {engine:"rho", bits:50, status:"verified",    evals:268285522,    elapsed:618,   elapsedText:"10 m 18 s", rate:434425,  rss:198.87, workspace:54.07*KiB, wsText:"54.07 KiB"},
+ {engine:"rho", bits:60, status:"verified",    evals:89236658241,  elapsed:48420, elapsedText:"13 h 27 m", rate:1841573, rss:197.43, workspace:3.68*MiB,  wsText:"3.68 MiB"},
+ {engine:"rho", bits:70, status:"interrupted", evals:27999999720,  elapsed:13860, elapsedText:"3 h 51 m",  rate:2018493, rss:198.75, workspace:1.12*MiB,  wsText:"1.12 MiB"},
+ {engine:"rho", bits:80, status:"interrupted", evals:0,            elapsed:4.63,  elapsedText:"4.63 s",    rate:0,       rss:24.15,  workspace:9.96*KiB,  wsText:"9.96 KiB"}
+];
+
+/* Report Table 3 — width-specific parameters */
+var PARAMS = [
+ {bits:10, bcap:10000,    dpBits:3,  chain:8,        rcap:10000},
+ {bits:20, bcap:100000,   dpBits:6,  chain:64,       rcap:100000},
+ {bits:30, bcap:1000000,  dpBits:9,  chain:512,      rcap:1000000},
+ {bits:40, bcap:5000000,  dpBits:12, chain:4096,     rcap:10000000},
+ {bits:50, bcap:50000000, dpBits:15, chain:32768,    rcap:100000000},
+ {bits:60, bcap:5000000,  dpBits:18, chain:262144,   rcap:100000000},
+ {bits:70, bcap:2000000,  dpBits:21, chain:2097152,  rcap:100000000},
+ {bits:80, bcap:1000000,  dpBits:24, chain:16777216, rcap:100000000}
+];
+
+/* Report Table 1 — generic birthday-scale work and compact record storage */
+var STORAGE = [
+ {bits:10, evals:"40",     bytes:18, text:"722 B",       raw:722},
+ {bits:20, evals:"1.28 k", bytes:19, text:"23.81 KiB",   raw:23.81*KiB},
+ {bits:30, evals:"41.1 k", bytes:20, text:"802.12 KiB",  raw:802.12*KiB},
+ {bits:40, evals:"1.31 M", bytes:21, text:"26.32 MiB",   raw:26.32*MiB},
+ {bits:50, evals:"42.1 M", bytes:23, text:"922.44 MiB",  raw:922.44*MiB},
+ {bits:60, evals:"1.35 B", bytes:24, text:"30.08 GiB",   raw:30.08*1024*MiB},
+ {bits:70, evals:"43.1 B", bytes:25, text:"1002.65 GiB", raw:1002.65*1024*MiB},
+ {bits:80, evals:"1.38 T", bytes:26, text:"32.59 TiB",   raw:32.59*1024*1024*MiB}
+];
+
+/* Report Table 10 — catalogue of all 17 independently verified collision pairs */
+var PAIRS = [
+ ["birthday",10,"1243","9759","e000"],
+ ["birthday",20,"24896","48990","200a90"],
+ ["birthday",30,"21560","33874","218536a0"],
+ ["birthday",40,"1196635","760453","773b19cfaa"],
+ ["dp",10,"70c0","b5c0","4b00"],
+ ["dp",20,"583db0","d99680","70aaa0"],
+ ["dp",30,"6e0a3b34","d9a0fcb8","b3f609ec"],
+ ["dp",40,"c8dbfe4949","bc5ec32af2","716f9a0bfa"],
+ ["dp",50,"68be7177703ec0","894ae73a5e1100","2e51d6ee512e80"],
+ ["dp",60,"29bac8f688299670","ad5b2c396de37540","39567db06eb332d0"],
+ ["dp",70,"bc821b6a65da843ff4","9be6ff124f11ff92ec","a8274903fe5c374a30"],
+ ["rho",10,"ad00","4e40","f4c0"],
+ ["rho",20,"b14c20","62bd20","6300c0"],
+ ["rho",30,"4916656c","be53f5b0","a6ca4210"],
+ ["rho",40,"162e32b0b8","aefbac66e1","02a86c3e29"],
+ ["rho",50,"fc20b76ecb80c0","3282796c6369c0","aabde7548e5340"],
+ ["rho",60,"556dc7664d2641f0","60c426c0f8310480","5e022aabafa95910"]
+];
+
+/* Per-configuration commentary, report sections 6.2-6.4 and 7 */
+var NOTES = {
+ "birthday-10":"Baseline demonstration. Dominated by process startup, database initialisation and checkpoint overhead rather than search work.",
+ "birthday-20":"Still overhead-dominated; not usable for estimating steady-state throughput.",
+ "birthday-30":"Overhead-dominated. Workspace crosses into the hundreds of kilobytes as records accumulate.",
+ "birthday-40":"1,190,775 records committed across 16 shards. Colliding counters 1,196,635 and 760,453 share the reduced output 773b19cfaa. The widest verified birthday result in the matrix.",
+ "birthday-50":"Interrupted before its 50 M cap. Highest workspace (495.60 MiB) and highest RSS upper bound (781.79 MiB) anywhere in the matrix — 122x the storage and 3.93x the RSS of the successful 50-bit DP run.",
+ "birthday-60":"Reached the deliberately reduced 5 M cap. Birthday-model collision probability at that work is approximately 1.08 x 10-5, so no collision is unsurprising. This is a resource-bounded feasibility row.",
+ "birthday-70":"Reached the 2 M cap. Model probability approximately 1.69 x 10-9.",
+ "birthday-80":"Reached the 1 M cap. Model probability approximately 4.14 x 10-13 — far too small to be comparable to a full search.",
+ "dp-10":"Only 34 counted hashes with d = 3 distinguished bits. Chains are extremely short at this width.",
+ "dp-20":"686 hashes, d = 6, mean chain 64.",
+ "dp-30":"d = 9, mean chain 512. First width where DP throughput becomes meaningful.",
+ "dp-40":"688,527 hashes in under a second at 704 k hashes/s — already faster than birthday at the same width while holding 1.35 MiB.",
+ "dp-50":"52.10 M counted hashes in 47.84 s using 4.06 MiB. The direct storage counterpoint to the interrupted birthday-50 row.",
+ "dp-60":"272.25 M hashes in 4 m 27 s. An early success relative to expectation — a single-run observation, not an expected value.",
+ "dp-70":"The principal result. d = 21 (mean chain 2,097,152, cap 16,777,216); 2,624 chains completed and 2,623 endpoints stored. A duplicate endpoint joined chains 2101 and 2616; retracing cost 7,152,782 extra hashes and found no false merge. 5.31 B hashes in 56 m 53 s at 1.556 M/s in 4.16 MiB.",
+ "dp-80":"The largest incomplete workload: 17,262 chains, 17,255 endpoints, seven capped chains, 288.289 B hashes over 34 h 08 m. No duplicate endpoint at the frozen checkpoint. Idealised birthday-model probability approximately 3.38%. Reported as substantial progress, not as a negative result.",
+ "rho-10":"311 hashes across independent Floyd attempts. Persistent state is completed-attempt metadata only.",
+ "rho-20":"5,417 hashes. Workspace unchanged at 49.21 KiB — rho stores no walk state.",
+ "rho-30":"69,724 hashes, workspace still 49.21 KiB.",
+ "rho-40":"320,734 hashes in 2.00 s, workspace still 49.21 KiB.",
+ "rho-50":"268.29 M hashes in 10 m 18 s using only 54.07 KiB — but 5.15x the counted hashes and 12.91x the elapsed time of DP at the same width.",
+ "rho-60":"893 completed attempts and 89.24 B hashes over 13 h 27 m. The winning attempt was number 897 and used 36,659,133 hashes itself; the rest is restart work that independent attempts cannot share. 327.8x the hashes and 181.5x the time of DP-60.",
+ "rho-70":"27.999 B hashes over 3 h 51 m before interruption, with no committed collision.",
+ "rho-80":"An aborted, non-substantive launch: 4.63 s and zero completed counted hashes. Shown for completeness and excluded from every throughput and feasibility conclusion."
+};
+
+var ENG = {
+  birthday:{name:"Birthday",             short:"Birthday", color:"#f2b134"},
+  dp:      {name:"Distinguished points", short:"DP",       color:"#6ea8fe"},
+  rho:     {name:"Pollard rho",          short:"Rho",      color:"#a78bfa"}
+};
+var STATUS = {verified:"Verified", budget:"Evaluation budget", interrupted:"Interrupted"};
+var BITS = [10,20,30,40,50,60,70,80];
+
+/* =============================================================
+   HELPERS
+   ============================================================= */
+function $(s, r){ return (r||document).querySelector(s); }
+function $$(s, r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); }
+function group(n){ return n.toLocaleString("en-US"); }
+function compact(n){
+  if(n === 0) return "0";
+  var u = [[1e12,"T"],[1e9,"B"],[1e6,"M"],[1e3,"k"]];
+  for(var i=0;i<u.length;i++){ if(n >= u[i][0]) return (n/u[i][0]).toFixed(n/u[i][0] >= 100 ? 0 : 2) + " " + u[i][1]; }
+  return String(n);
+}
+function bytesText(b){
+  if(b >= 1024*1024*1024*1024) return (b/(1024*1024*1024*1024)).toFixed(2)+" TiB";
+  if(b >= 1024*1024*1024) return (b/(1024*1024*1024)).toFixed(2)+" GiB";
+  if(b >= MiB) return (b/MiB).toFixed(2)+" MiB";
+  if(b >= KiB) return (b/KiB).toFixed(2)+" KiB";
+  return b.toFixed(0)+" B";
+}
+function timeText(s){ return s < 60 ? s.toFixed(2)+" s" : (s < 3600 ? (s/60).toFixed(1)+" min" : (s/3600).toFixed(1)+" h"); }
+function row(engine, bits){
+  for(var i=0;i<MATRIX.length;i++){ if(MATRIX[i].engine===engine && MATRIX[i].bits===bits) return MATRIX[i]; }
+  return null;
+}
+function animateBars(root){
+  requestAnimationFrame(function(){
+    $$("[data-w]", root).forEach(function(e){ e.style.width = e.getAttribute("data-w") + "%"; });
+  });
+}
+
+/* tooltip — same behaviour as the GUARDIAN-NIDS page */
+var tip = $("#tip");
+function showTip(e, html){
+  tip.innerHTML = html; tip.classList.add("on");
+  var r = tip.getBoundingClientRect();
+  var x = e.clientX + 16, y = e.clientY + 16;
+  if (x + r.width  > window.innerWidth  - 8) x = e.clientX - r.width  - 14;
+  if (y + r.height > window.innerHeight - 8) y = e.clientY - r.height - 14;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function hideTip(){ tip.classList.remove("on"); }
+
+/* =============================================================
+   STORAGE BARS (Table 1)
+   ============================================================= */
+(function(){
+  var lo = Math.log10(STORAGE[0].raw), hi = Math.log10(STORAGE[STORAGE.length-1].raw);
+  $("#storageBars").innerHTML = STORAGE.map(function(s){
+    var frac = (Math.log10(s.raw) - lo) / (hi - lo);
+    return '<div class="bar-row" style="grid-template-columns:64px 1fr 96px">'
+      + '<div class="name">' + s.bits + ' bit</div>'
+      + '<div class="bar-track"><div class="bar-fill" data-w="' + (5 + frac*95).toFixed(1) + '" style="width:0%"></div></div>'
+      + '<div class="val">' + s.text + '<small>' + s.bytes + ' B/rec</small></div></div>';
+  }).join("");
+})();
+
+/* =============================================================
+   WIDTH PARAMETERS (Table 3)
+   ============================================================= */
+(function(){
+  $("#paramsBody").innerHTML = PARAMS.map(function(p){
+    return '<tr><td><span class="k">' + p.bits + '</span></td>'
+      + '<td class="num">' + group(p.bcap) + '</td>'
+      + '<td class="num">' + p.dpBits + '</td>'
+      + '<td class="num">' + group(p.chain) + '</td>'
+      + '<td class="num">' + group(p.rcap) + '</td></tr>';
+  }).join("");
+})();
+
+/* =============================================================
+   OUTCOME MATRIX
+   ============================================================= */
+function drawMatrix(){
+  var h = '<div class="corner"></div>';
+  BITS.forEach(function(b){ h += '<div class="clab">' + b + '</div>'; });
+  ["birthday","dp","rho"].forEach(function(k){
+    h += '<div class="rlab"><i style="background:' + ENG[k].color + '"></i>' + ENG[k].name + '</div>';
+    BITS.forEach(function(b){
+      var r = row(k, b);
+      var label = r.status === "verified" ? "PASS" : (r.status === "budget" ? "BUDGET" : "STOP");
+      h += '<button type="button" class="cell ' + r.status + '" data-e="' + k + '" data-b="' + b + '"'
+        + ' aria-pressed="false" aria-label="' + ENG[k].name + ' at ' + b + ' bits — ' + STATUS[r.status] + '">'
+        + label + '</button>';
+    });
+  });
+  $("#mxGrid").innerHTML = h;
+
+  $$("#mxGrid .cell").forEach(function(c){
+    var r = row(c.getAttribute("data-e"), +c.getAttribute("data-b"));
+    c.addEventListener("click", function(){ select(r.engine, r.bits); });
+    c.addEventListener("mousemove", function(e){
+      showTip(e, '<span class="tt">' + ENG[r.engine].name + ' · ' + r.bits + ' bits</span>'
+        + STATUS[r.status] + '<br>counted work <b>' + compact(r.evals) + '</b>'
+        + '<br>elapsed <b>' + r.elapsedText + '</b>'
+        + '<br>workspace <b>' + r.wsText + '</b>');
+    });
+    c.addEventListener("mouseleave", hideTip);
+  });
+}
+
+function select(engine, bits){
+  $$("#mxGrid .cell").forEach(function(c){
+    c.setAttribute("aria-pressed",
+      String(c.getAttribute("data-e") === engine && c.getAttribute("data-b") === String(bits)));
+  });
+  var r = row(engine, bits), p = null, i;
+  for(i=0;i<PARAMS.length;i++){ if(PARAMS[i].bits === bits) p = PARAMS[i]; }
+
+  var pair = "";
+  for(i=0;i<PAIRS.length;i++){
+    if(PAIRS[i][0] === engine && PAIRS[i][1] === bits){
+      pair = '<div class="mono dim" style="font-size:12.2px; margin-top:5px">x&#8321; <span style="color:var(--ink-2)">'
+        + PAIRS[i][2] + '</span> &nbsp;·&nbsp; x&#8322; <span style="color:var(--ink-2)">' + PAIRS[i][3]
+        + '</span> &nbsp;&#8594;&nbsp; <span style="color:var(--gold)">' + PAIRS[i][4] + '</span></div>';
+    }
+  }
+  var params = engine === "birthday" ? ("evaluation cap " + group(p.bcap))
+    : engine === "dp" ? ("d = " + p.dpBits + " · mean chain " + group(p.chain) + " · cap " + group(p.chain * 8))
+    : ("per-attempt hash cap " + group(p.rcap));
+
+  $("#mxDetail").innerHTML =
+    '<div class="detail-top">'
+    + '<div><h3><i style="background:' + ENG[engine].color + '"></i>' + ENG[engine].name + ' · ' + bits + ' bits</h3>' + pair + '</div>'
+    + '<span class="state ' + r.status + '">' + STATUS[r.status] + '</span>'
+    + '</div>'
+    + '<div class="dstat">'
+    + '<div><div class="k">Counted work</div><div class="v">' + group(r.evals) + '</div></div>'
+    + '<div><div class="k">Elapsed</div><div class="v">' + r.elapsedText + '</div></div>'
+    + '<div><div class="k">Rate (H/s)</div><div class="v">' + (r.rate ? group(r.rate) : "—") + '</div></div>'
+    + '<div><div class="k">RSS upper bound</div><div class="v">' + r.rss.toFixed(2) + ' MiB</div></div>'
+    + '<div><div class="k">Workspace</div><div class="v">' + r.wsText + '</div></div>'
+    + '</div>'
+    + '<p class="muted" style="font-size:14px; margin-top:16px">' + NOTES[engine + "-" + bits] + '</p>'
+    + '<p class="dim mono" style="font-size:12px; margin-top:10px">Configured parameters: ' + params + '</p>';
+}
+
+/* =============================================================
+   MAIN LINE CHART
+   ============================================================= */
+var METRICS = {
+  evals: {key:"evals", label:"Counted hash evaluations", log:true,
+    blurb:"Counted hash evaluations by engine and width against the generic birthday expectation. Hollow markers indicate incomplete work.",
+    note:"Counted hash evaluations against the generic expectation √(π/2)·2^(n/2). Rho-80 completed zero counted hashes and is omitted. Large stochastic differences are visible even among successful runs, since DP and rho traverse dependent walks rather than drawing independent table samples."},
+  elapsed: {key:"elapsed", label:"Elapsed time", log:true,
+    blurb:"Elapsed wall-clock time per configuration, spanning sub-second demonstrations to the 34-hour DP-80 run.",
+    note:"Small-width rows are dominated by process startup, database initialisation and checkpoint overhead — they should not be used to estimate steady-state throughput. At higher widths the observed search work dominates fixed overhead."},
+  rate: {key:"rate", label:"Aggregate counted rate (hashes/s)", log:true,
+    blurb:"End-to-end counted throughput, including coordination and persistence overhead — not a raw SHA3-256 microbenchmark.",
+    note:"Birthday throughput stays roughly between 44,000 and 116,000 hashes/s because every batch must be partitioned and inserted into the SQLite table. DP exceeds one million hashes/s from 50 bits onward and reaches 2.345 million in the long 80-bit run. Rho-80 recorded a zero rate and is excluded."},
+  rss: {key:"rss", label:"Estimated process-RSS upper bound (MiB)", log:false,
+    blurb:"An estimated upper bound from coordinator memory plus a worker-based estimate — not a continuously sampled OS peak.",
+    note:"The birthday curve is the only one that departs from the roughly 200 MiB floor, peaking at 781.79 MiB during the interrupted 50-bit run. Workers may report memory at task completion rather than at the true peak, so these values are less directly auditable than the storage figures."},
+  workspace: {key:"workspace", label:"Persistent workspace storage", log:true,
+    blurb:"Whole-run-directory size at the snapshot — the clearest single picture of the time–memory trade-off.",
+    note:"Workspace size covers the entire run directory including the persistent database and evidence files; for active SQLite write-ahead logging the whole workspace, not the main database file alone, is the recoverable unit. Birthday climbs into the hundreds of MiB while DP holds near 4 MiB and rho stays below 55 KiB through 50 bits."}
+};
+var EXPECT = BITS.map(function(n){ return {bits:n, v: Math.sqrt(Math.PI/2) * Math.pow(2, n/2)}; });
+var metric = "evals";
+
+function drawChart(){
+  var m = METRICS[metric];
+  var svg = $("#mainChart"), NS = "http://www.w3.org/2000/svg";
+  var W = 900, H = 380, L = 92, R = 18, T = 34, B = 50;
+  var pw = W - L - R, ph = H - T - B;
+  while(svg.childNodes.length > 1) svg.removeChild(svg.lastChild);
+
+  var pts = [];
+  MATRIX.forEach(function(r){
+    var v = r[m.key];
+    if(m.log && v <= 0) return;
+    pts.push({r:r, v:v});
+  });
+  var vals = pts.map(function(p){ return p.v; });
+  if(metric === "evals") EXPECT.forEach(function(e){ vals.push(e.v); });
+
+  var lo, hi, toY;
+  if(m.log){
+    lo = Math.floor(Math.log10(Math.min.apply(null, vals)));
+    hi = Math.ceil(Math.log10(Math.max.apply(null, vals)));
+    toY = function(v){ return T + ph - ((Math.log10(v) - lo) / (hi - lo)) * ph; };
+  }else{
+    lo = 0; hi = Math.ceil(Math.max.apply(null, vals) / 100) * 100;
+    toY = function(v){ return T + ph - ((v - lo) / (hi - lo)) * ph; };
+  }
+  var toX = function(b){ return L + ((b - 10) / 70) * pw; };
+
+  function add(tag, attrs, txt){
+    var e = document.createElementNS(NS, tag), k;
+    for(k in attrs) e.setAttribute(k, attrs[k]);
+    if(txt != null) e.textContent = txt;
+    svg.appendChild(e);
+    return e;
+  }
+  function tickText(v){
+    if(!m.log) return String(v);
+    if(metric === "workspace") return bytesText(v).replace(".00","");
+    if(metric === "elapsed") return v < 1 ? v + " s" : (v < 3600 ? compact(v).replace(".00","") + " s" : (v/3600).toFixed(0) + " h");
+    return compact(v).replace(".00","");
+  }
+
+  var ticks = [], e2;
+  if(m.log){
+    if(metric === "workspace"){
+      [1,10,100].forEach(function(k){ ticks.push(k*KiB); ticks.push(k*MiB); });
+      ticks.push(1024*MiB);
+      ticks = ticks.filter(function(v){ return v >= Math.pow(10,lo)/2 && v <= Math.pow(10,hi)*2; });
+      ticks.sort(function(a,b){ return a-b; });
+    }else{
+      for(e2 = lo; e2 <= hi; e2++) ticks.push(Math.pow(10, e2));
+    }
+  }else{
+    for(e2 = 0; e2 <= hi; e2 += 200) ticks.push(e2);
+  }
+  ticks.forEach(function(v){
+    var y = toY(v);
+    if(y < T - 2 || y > T + ph + 2) return;
+    add("line", {x1:L, y1:y, x2:L+pw, y2:y, "class":"grid-l"});
+    add("text", {x:L-10, y:y+3.5, "text-anchor":"end"}, tickText(v));
+  });
+  add("line", {x1:L, y1:T, x2:L, y2:T+ph, "class":"axis"});
+  add("line", {x1:L, y1:T+ph, x2:L+pw, y2:T+ph, "class":"axis"});
+  BITS.forEach(function(b){ add("text", {x:toX(b), y:T+ph+21, "text-anchor":"middle"}, String(b)); });
+  add("text", {x:L+pw/2, y:H-6, "text-anchor":"middle", "class":"ax-title"}, "Truncated output width (bits)");
+  add("text", {x:0, y:14, "text-anchor":"start", "class":"ax-title"}, m.log ? m.label + " · log scale" : m.label);
+
+  if(metric === "evals"){
+    add("path", {d: EXPECT.map(function(e,i){ return (i?"L":"M") + toX(e.bits).toFixed(1) + "," + toY(e.v).toFixed(1); }).join(" "), "class":"expline"});
+  }
+
+  ["birthday","dp","rho"].forEach(function(k){
+    var s = pts.filter(function(p){ return p.r.engine === k; }).sort(function(a,b){ return a.r.bits - b.r.bits; });
+    if(!s.length) return;
+    add("path", {d: s.map(function(p,i){ return (i?"L":"M") + toX(p.r.bits).toFixed(1) + "," + toY(p.v).toFixed(1); }).join(" "),
+                 "class":"sline", stroke:ENG[k].color});
+    s.forEach(function(p){
+      var done = p.r.status === "verified";
+      var node = add(done ? "circle" : "rect",
+        done ? {cx:toX(p.r.bits).toFixed(1), cy:toY(p.v).toFixed(1), r:5, "class":"pt", fill:ENG[k].color}
+             : {x:(toX(p.r.bits)-4.5).toFixed(1), y:(toY(p.v)-4.5).toFixed(1), width:9, height:9, rx:1.5, "class":"pt-open", stroke:ENG[k].color});
+      node.addEventListener("mousemove", function(ev){
+        var val = metric === "workspace" ? bytesText(p.v)
+                : metric === "elapsed" ? timeText(p.v)
+                : metric === "rss" ? p.v.toFixed(2) + " MiB"
+                : group(p.v);
+        showTip(ev, '<span class="tt">' + ENG[k].name + ' · ' + p.r.bits + ' bits</span>'
+          + m.label.split(" (")[0] + ' <b>' + val + '</b><br>' + STATUS[p.r.status]
+          + '<br><span style="color:var(--ink-3)">click to inspect</span>');
+      });
+      node.addEventListener("mouseleave", hideTip);
+      node.addEventListener("click", function(){
+        select(p.r.engine, p.r.bits);
+        $("#mxDetail").scrollIntoView({behavior:"smooth", block:"center"});
+      });
+    });
+  });
+
+  $("#chartBlurb").textContent = m.blurb;
+  $("#chartNote").textContent = m.note;
+  $("#expKey").style.display = metric === "evals" ? "inline-flex" : "none";
+}
+
+/* =============================================================
+   TRADE-OFF COMPARISON BARS
+   ============================================================= */
+function cmpBars(target, engines, bits, series){
+  var html = series.map(function(s){
+    var max = Math.max.apply(null, engines.map(function(k){ return row(k, bits)[s.key]; }));
+    return '<h4 class="mini" style="margin:16px 0 9px">' + s.label + '</h4>'
+      + engines.map(function(k){
+          var v = row(k, bits)[s.key];
+          return '<div class="bar-row" style="grid-template-columns:64px 1fr 92px">'
+            + '<div class="name">' + ENG[k].short + '</div>'
+            + '<div class="bar-track"><div class="bar-fill" data-w="' + Math.max(1.2, (v/max)*100).toFixed(1)
+            + '" style="width:0%; background:linear-gradient(90deg,' + ENG[k].color + '99,' + ENG[k].color + ')"></div></div>'
+            + '<div class="val">' + s.fmt(v) + '</div></div>';
+        }).join("");
+  }).join("");
+  $(target).innerHTML = html;
+}
+
+/* =============================================================
+   FULL RESULT MATRIX TABLE
+   ============================================================= */
+var sortKey = null, sortDir = 1;
+function drawTable(){
+  var rows = MATRIX.slice();
+  if(sortKey){
+    rows.sort(function(a,b){
+      var x = a[sortKey], y = b[sortKey];
+      return typeof x === "string" ? sortDir * x.localeCompare(y) : sortDir * (x - y);
+    });
+  }
+  $("#matrixBody").innerHTML = rows.map(function(r){
+    return '<tr data-e="' + r.engine + '" data-b="' + r.bits + '" style="cursor:pointer">'
+      + '<td><span class="k">' + ENG[r.engine].name + '</span></td>'
+      + '<td class="num">' + r.bits + '</td>'
+      + '<td><span class="state ' + r.status + '">' + STATUS[r.status] + '</span></td>'
+      + '<td class="num">' + group(r.evals) + '</td>'
+      + '<td class="num">' + r.elapsedText + '</td>'
+      + '<td class="num">' + (r.rate ? group(r.rate) : "—") + '</td>'
+      + '<td class="num">' + r.rss.toFixed(2) + '</td>'
+      + '<td class="num">' + r.wsText + '</td></tr>';
+  }).join("");
+  $$("#matrixBody tr").forEach(function(tr){
+    tr.addEventListener("click", function(){
+      select(tr.getAttribute("data-e"), +tr.getAttribute("data-b"));
+      $("#mxDetail").scrollIntoView({behavior:"smooth", block:"center"});
+    });
+  });
+}
+$$("#matrixTable th[data-sort]").forEach(function(th){
+  th.style.cursor = "pointer";
+  th.title = "Sort by this column";
+  th.addEventListener("click", function(){
+    var k = th.getAttribute("data-sort");
+    if(sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = 1; }
+    drawTable();
+  });
+});
+
+/* =============================================================
+   EVIDENCE TABLE
+   ============================================================= */
+(function(){
+  $("#evBody").innerHTML = PAIRS.map(function(p){
+    return '<tr><td class="eng"><i style="background:' + ENG[p[0]].color + '"></i>' + ENG[p[0]].short + '</td>'
+      + '<td class="num">' + p[1] + '</td><td>' + p[2] + '</td><td>' + p[3] + '</td>'
+      + '<td class="out">' + p[4] + '</td></tr>';
+  }).join("");
+})();
+
+/* =============================================================
+   CODE TABS
+   ============================================================= */
+var CODE = {
+  trunc: {cap:"ghcollision/core.py — exact leading-bit truncation. The final-byte mask is 0xFF for byte-aligned widths, otherwise it retains only the configured most-significant remainder bits, and a state carrying non-zero padding bits is rejected.", html:
+'<span class="kw">@property</span>\n'
++ '<span class="kw">def</span> <span class="fn">final_byte_mask</span>(self) -&gt; <span class="fn">int</span>:\n'
++ '    remainder = self.bits % <span class="nu">8</span>\n'
++ '    <span class="kw">return</span> <span class="nu">0xFF</span> <span class="kw">if</span> remainder == <span class="nu">0</span> <span class="kw">else</span> ((<span class="nu">0xFF</span> &lt;&lt; (<span class="nu">8</span> - remainder)) &amp; <span class="nu">0xFF</span>)\n\n'
++ '<span class="kw">def</span> <span class="fn">truncate</span>(self, digest: <span class="fn">bytes</span>) -&gt; <span class="fn">bytes</span>:\n'
++ '    <span class="kw">if</span> <span class="fn">len</span>(digest) &lt; self.state_bytes:\n'
++ '        <span class="kw">raise</span> <span class="fn">ValueError</span>(<span class="st">"digest is shorter than configured truncated output"</span>)\n'
++ '    result = <span class="fn">bytearray</span>(digest[: self.state_bytes])\n'
++ '    result[-<span class="nu">1</span>] &amp;= self.final_byte_mask\n'
++ '    <span class="kw">return</span> <span class="fn">bytes</span>(result)\n\n'
++ '<span class="kw">def</span> <span class="fn">validate_state</span>(self, state: <span class="fn">bytes</span>) -&gt; <span class="kw">None</span>:\n'
++ '    <span class="kw">if</span> <span class="fn">len</span>(state) != self.state_bytes:\n'
++ '        <span class="kw">raise</span> <span class="fn">ValueError</span>(<span class="st">f"state must be exactly {self.state_bytes} bytes"</span>)\n'
++ '    <span class="kw">if</span> state[-<span class="nu">1</span>] &amp; (~self.final_byte_mask &amp; <span class="nu">0xFF</span>):\n'
++ '        <span class="kw">raise</span> <span class="fn">ValueError</span>(<span class="st">"state has non-zero padding bits"</span>)'},
+
+  encode: {cap:"ghcollision/core.py — GHCF v1 prefix construction and deterministic starts. Every metadata field is length-delimited, so no two distinct inputs can encode to the same byte string.", html:
+'MAGIC        = <span class="st">b"GHCF\\x01"</span>\n'
++ 'COUNTER_TAG  = <span class="st">b"\\x00"</span>\n'
++ 'STATE_TAG    = <span class="st">b"\\x01"</span>\n\n'
++ '<span class="kw">def</span> <span class="fn">_length_prefix</span>(value: <span class="fn">bytes</span>) -&gt; <span class="fn">bytes</span>:\n'
++ '    <span class="kw">return</span> <span class="fn">len</span>(value).to_bytes(<span class="nu">2</span>, <span class="st">"big"</span>) + value\n\n'
++ '<span class="kw">@property</span>\n'
++ '<span class="kw">def</span> <span class="fn">prefix</span>(self) -&gt; <span class="fn">bytes</span>:\n'
++ '    <span class="kw">return</span> (\n'
++ '        MAGIC\n'
++ '        + _length_prefix(self.domain.encode(<span class="st">"utf-8"</span>))\n'
++ '        + _length_prefix(self.run_id.encode(<span class="st">"utf-8"</span>))\n'
++ '        + _length_prefix(self.salt)\n'
++ '        + _length_prefix(self.algorithm.encode(<span class="st">"ascii"</span>))\n'
++ '        + self.bits.to_bytes(<span class="nu">2</span>, <span class="st">"big"</span>)\n'
++ '    )\n\n'
++ '<span class="cm"># SHAKE-256 is an internal deterministic expander here,</span>\n'
++ '<span class="cm"># not the collision target</span>\n'
++ '<span class="kw">def</span> <span class="fn">deterministic_start</span>(self, sequence_id: <span class="fn">int</span>) -&gt; <span class="fn">bytes</span>:\n'
++ '    raw = hashlib.shake_256(\n'
++ '        START_DOMAIN + self.prefix + sequence_id.to_bytes(<span class="nu">16</span>, <span class="st">"big"</span>)\n'
++ '    ).digest(self.state_bytes)\n'
++ '    state = <span class="fn">bytearray</span>(raw)\n'
++ '    state[-<span class="nu">1</span>] &amp;= self.final_byte_mask\n'
++ '    <span class="kw">return</span> <span class="fn">bytes</span>(state)'},
+
+  dp: {cap:"ghcollision/distinguished.py — abridged. When two chains land on the same endpoint they merged earlier: align the remaining lengths, walk in lockstep, and return the distinct predecessors. A path that coincides without yielding distinct predecessors is recorded as a false merge, not a result.", html:
+'<span class="kw">def</span> <span class="fn">reconstruct_collision</span>(config, start1, length1, start2, length2):\n'
++ '    <span class="st">"""Retrace two equal-endpoint walks and return distinct merge predecessors."""</span>\n'
++ '    transition = _fast_transition(config)\n'
++ '    x1, x2 = start1, start2\n'
++ '    remaining1, remaining2 = length1, length2\n'
++ '    hashes, steps = <span class="nu">0</span>, <span class="nu">0</span>\n\n'
++ '    <span class="cm"># 1. advance the longer trail until both have equal remaining length</span>\n'
++ '    <span class="kw">while</span> remaining1 &gt; remaining2:\n'
++ '        x1 = transition(x1); remaining1 -= <span class="nu">1</span>; hashes += <span class="nu">1</span>\n'
++ '    <span class="kw">while</span> remaining2 &gt; remaining1:\n'
++ '        x2 = transition(x2); remaining2 -= <span class="nu">1</span>; hashes += <span class="nu">1</span>\n\n'
++ '    <span class="cm"># 2. advance both in lockstep, retaining each current predecessor</span>\n'
++ '    <span class="kw">while</span> x1 != x2 <span class="kw">and</span> steps &lt;= max_lockstep:\n'
++ '        previous1, previous2 = x1, x2\n'
++ '        x1 = transition(x1); x2 = transition(x2)\n'
++ '        hashes += <span class="nu">2</span>; steps += <span class="nu">1</span>\n\n'
++ '    <span class="cm"># 3. distinct predecessors mapping to the same next state = collision</span>\n'
++ '    <span class="kw">if</span> previous1 <span class="kw">is</span> <span class="kw">None</span> <span class="kw">or</span> previous1 == previous2:\n'
++ '        <span class="kw">return</span> <span class="kw">None</span>, <span class="kw">None</span>, hashes   <span class="cm"># false merge</span>\n'
++ '    <span class="kw">if</span> transition(previous1) != transition(previous2):\n'
++ '        <span class="kw">return</span> <span class="kw">None</span>, <span class="kw">None</span>, hashes\n'
++ '    <span class="kw">return</span> previous1, previous2, hashes'},
+
+  rho: {cap:"ghcollision/workers.py — abridged. One deterministic Floyd attempt. Each attempt is self-contained, which keeps persistent storage tiny and is also exactly why restart work cannot be shared between attempts.", html:
+'<span class="kw">def</span> <span class="fn">rho_attempt_worker</span>(attempt_id: <span class="fn">int</span>) -&gt; <span class="fn">dict</span>:\n'
++ '    config = _require_init()\n'
++ '    start  = config.deterministic_start(attempt_id)\n\n'
++ '    <span class="cm"># tortoise once, hare twice, until they meet or the cap is hit</span>\n'
++ '    tortoise = transition_fast(start)\n'
++ '    hare     = transition_fast(transition_fast(start))\n'
++ '    hashes   = <span class="nu">3</span>\n'
++ '    <span class="kw">while</span> tortoise != hare <span class="kw">and</span> hashes + <span class="nu">3</span> &lt;= cap:\n'
++ '        tortoise = transition_fast(tortoise)\n'
++ '        hare     = transition_fast(transition_fast(hare))\n'
++ '        hashes  += <span class="nu">3</span>\n'
++ '    <span class="kw">if</span> tortoise != hare:\n'
++ '        <span class="kw">return</span> {<span class="st">"status"</span>: <span class="st">"capped"</span>, ...}\n\n'
++ '    <span class="cm"># reset the tortoise and advance both once per step</span>\n'
++ '    tortoise = start\n'
++ '    <span class="kw">while</span> tortoise != hare <span class="kw">and</span> hashes + <span class="nu">2</span> &lt;= cap:\n'
++ '        previous_tortoise, previous_hare = tortoise, hare\n'
++ '        tortoise = transition_fast(tortoise)\n'
++ '        hare     = transition_fast(hare)\n'
++ '        hashes  += <span class="nu">2</span>\n\n'
++ '    <span class="kw">if</span> previous_tortoise != previous_hare \\\n'
++ '       <span class="kw">and</span> transition_fast(previous_tortoise) == transition_fast(previous_hare):\n'
++ '        <span class="kw">return</span> {<span class="st">"status"</span>: <span class="st">"collision"</span>,\n'
++ '                <span class="st">"x1"</span>: previous_tortoise, <span class="st">"x2"</span>: previous_hare, ...}\n'
++ '    <span class="kw">return</span> {<span class="st">"status"</span>: <span class="st">"restart"</span>, ...}'},
+
+  verify: {cap:"ghcollision/core.py — the shared result constructor. Nothing becomes a result until both messages are re-encoded and both complete digests recomputed; equal messages or non-matching reduced outputs raise instead.", html:
+'<span class="kw">if</span> message1 == message2:\n'
++ '    <span class="kw">raise</span> <span class="fn">ValueError</span>(<span class="st">"collision inputs are not distinct"</span>)\n\n'
++ 'full1, reduced1 = config.full_and_truncated(message1)\n'
++ 'full2, reduced2 = config.full_and_truncated(message2)\n\n'
++ '<span class="kw">if</span> reduced1 != reduced2:\n'
++ '    <span class="kw">raise</span> <span class="fn">ValueError</span>(\n'
++ '        <span class="st">"candidate pair does not collide for the configured truncated output"</span>)\n\n'
++ '<span class="kw">return</span> {\n'
++ '    <span class="st">"schema"</span>: <span class="st">"ghcollision-result-v1"</span>,\n'
++ '    <span class="st">"claim_scope"</span>: (\n'
++ '        <span class="st">f"Two distinct canonically encoded inputs collide in the first "</span>\n'
++ '        <span class="st">f"{config.bits} bits of {config.algorithm}; "</span>\n'
++ '        <span class="st">f"this is not a full-digest collision."</span>\n'
++ '    ),\n'
++ '    <span class="st">"engine"</span>: engine,\n'
++ '    <span class="st">"configuration"</span>: config.as_dict(),\n'
++ '    ...\n'
++ '}'}
+};
+(function(){
+  function show(k){
+    $("#codePanes").innerHTML = '<pre><code>' + CODE[k].html + '</code></pre>';
+    $("#codeCap").textContent = CODE[k].cap;
+    $$("#codeTabs button").forEach(function(b){
+      b.setAttribute("aria-selected", String(b.getAttribute("data-code") === k));
+    });
+  }
+  $$("#codeTabs button").forEach(function(b){
+    b.addEventListener("click", function(){ show(b.getAttribute("data-code")); });
+  });
+  show("trunc");
+})();
+
+/* =============================================================
+   SEGMENTED CONTROLS
+   ============================================================= */
+$$("[data-metric]").forEach(function(b){
+  b.addEventListener("click", function(){
+    $$("button", b.parentNode).forEach(function(x){ x.setAttribute("aria-pressed","false"); });
+    b.setAttribute("aria-pressed","true");
+    metric = b.getAttribute("data-metric");
+    drawChart();
+  });
+});
+
+/* =============================================================
+   INITIAL RENDER
+   ============================================================= */
+drawMatrix();
+select("dp", 70);
+drawChart();
+drawTable();
+cmpBars("#cmp50", ["birthday","dp","rho"], 50, [
+  {label:"Counted hashes", key:"evals",     fmt:compact},
+  {label:"Elapsed",        key:"elapsed",   fmt:timeText},
+  {label:"Workspace storage", key:"workspace", fmt:bytesText}
+]);
+cmpBars("#cmp60", ["dp","rho"], 60, [
+  {label:"Counted hashes", key:"evals",     fmt:compact},
+  {label:"Elapsed",        key:"elapsed",   fmt:timeText},
+  {label:"Workspace storage", key:"workspace", fmt:bytesText}
+]);
+
+/* =============================================================
+   SCROLL REVEAL + ACTIVE NAV
+   ============================================================= */
+(function(){
+  var rvs = $$(".rv");
+  if (!("IntersectionObserver" in window)) {
+    rvs.forEach(function(e){ e.classList.add("in"); animateBars(e); });
+  } else {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if (en.isIntersecting){ en.target.classList.add("in"); animateBars(en.target); io.unobserve(en.target); }
+      });
+    }, {rootMargin:"0px 0px -8% 0px", threshold:0.06});
+    rvs.forEach(function(e){ io.observe(e); });
+  }
+
+  var links = $$("#navlinks a");
+  var secs = links.map(function(a){ return document.querySelector(a.getAttribute("href")); }).filter(Boolean);
+  function onScroll(){
+    var y = window.scrollY + 120, cur = -1;
+    secs.forEach(function(s, i){ if (s && s.offsetTop <= y) cur = i; });
+    links.forEach(function(a, i){ a.classList.toggle("on", i === cur); });
+  }
+  var ticking = false;
+  window.addEventListener("scroll", function(){
+    if (!ticking){ ticking = true; requestAnimationFrame(function(){ onScroll(); ticking = false; }); }
+  }, {passive:true});
+  onScroll();
+  window.addEventListener("resize", hideTip);
+})();
+
+})();
+
+</script>
+</body>
+</html>
